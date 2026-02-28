@@ -50,7 +50,7 @@ export function getFYLabel(fyStart) {
   return `FY ${yr}-${String(endYr).slice(-2)}`;
 }
 
-export function getFYList(startMonth = 4, yearsBack = 2, yearsForward = 1) {
+export function getFYList(startMonth = 4, yearsBack = 1, yearsForward = 2) {
   const currentFYStart = getFYStart(startMonth);
   const baseYear = Number(currentFYStart.split('-')[0]);
   const list = [];
