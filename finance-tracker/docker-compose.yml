@@ -1,0 +1,18 @@
+services:
+  finance-tracker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      # Named volume so the SQLite database persists across container restarts and rebuilds
+      - finance-db:/data
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DB_PATH: /data/finance.db
+    restart: unless-stopped
+
+volumes:
+  finance-db:
