@@ -1,2 +1,0 @@
-# ExpenseTracker
-# Update Readne.md
