@@ -49,3 +49,13 @@ export function getFYLabel(fyStart) {
   const endYr = mo === 1 ? yr : yr + 1;
   return `FY ${yr}-${String(endYr).slice(-2)}`;
 }
+
+export function getFYList(startMonth = 4, yearsBack = 2, yearsForward = 1) {
+  const currentFYStart = getFYStart(startMonth);
+  const baseYear = Number(currentFYStart.split('-')[0]);
+  const list = [];
+  for (let y = baseYear - yearsBack; y <= baseYear + yearsForward; y++) {
+    list.push(`${y}-${String(startMonth).padStart(2, '0')}`);
+  }
+  return list;
+}

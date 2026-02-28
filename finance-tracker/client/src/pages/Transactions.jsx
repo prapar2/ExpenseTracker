@@ -5,12 +5,11 @@ import TransactionForm from '../components/TransactionForm';
 import TransactionList from '../components/TransactionList';
 import FilterBar from '../components/FilterBar';
 import { formatINR } from '../utils/formatUtils';
-import { currentMonth, getFYStart, getFYMonths, getMonthLabel } from '../utils/dateUtils';
+import { currentMonth, getFYMonths, getMonthLabel } from '../utils/dateUtils';
 
-export default function Transactions({ fyStartMonth = 4 }) {
+export default function Transactions({ fyStart }) {
   const location = useLocation();
   const nav = useNavigate();
-  const fyStart = getFYStart(fyStartMonth);
   const fyMonths = getFYMonths(fyStart);
   const initState = location.state || {};
   const [month, setMonth] = useState(initState.month || currentMonth());
@@ -60,12 +59,12 @@ export default function Transactions({ fyStartMonth = 4 }) {
       {editingTx ? (
         <div className="mb-4">
           <h2 className="text-base font-semibold mb-2">Edit Transaction</h2>
-          <TransactionForm initial={editingTx} onSave={handleSave} onCancel={() => setEditingTx(null)} fyStartMonth={fyStartMonth} />
+          <TransactionForm initial={editingTx} onSave={handleSave} onCancel={() => setEditingTx(null)} fyStart={fyStart} />
         </div>
       ) : (
         <div className="mb-4">
           <h2 className="text-base font-semibold mb-2">New Transaction</h2>
-          <TransactionForm onSave={handleSave} fyStartMonth={fyStartMonth} />
+          <TransactionForm onSave={handleSave} fyStart={fyStart} />
         </div>
       )}
 

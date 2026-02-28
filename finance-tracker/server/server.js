@@ -90,6 +90,11 @@ app.get('/api/dashboard/yearly', (req, res) => {
   res.json(db.getDashboardYearly(fy_start));
 });
 
+app.post('/api/reset', (req, res) => {
+  try { res.json(db.resetDatabase()); }
+  catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 // Serve client in production
 app.use(express.static(path.join(__dirname, '../client/dist')));
 app.get('*', (req, res) => {

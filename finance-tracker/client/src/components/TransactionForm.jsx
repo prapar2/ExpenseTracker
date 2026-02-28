@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useTaxonomy } from '../context/TaxonomyContext';
-import { todayISO, getFYStart } from '../utils/dateUtils';
+import { todayISO } from '../utils/dateUtils';
 
 const TYPES = ['Income', 'Expense', 'Saving'];
 
-export default function TransactionForm({ initial, onSave, onCancel, fyStartMonth }) {
+export default function TransactionForm({ initial, onSave, onCancel, fyStart }) {
   const { getCategories, getSubcategories } = useTaxonomy();
   const today = todayISO();
-  const fyStart = getFYStart(fyStartMonth);
   const fyStartDate = fyStart + '-01';
 
   const [form, setForm] = useState({

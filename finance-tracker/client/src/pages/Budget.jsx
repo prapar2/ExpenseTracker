@@ -4,12 +4,11 @@ import { useTransactions } from '../hooks/useTransactions';
 import { useTaxonomy } from '../context/TaxonomyContext';
 import BudgetGrid from '../components/BudgetGrid';
 import ConfirmDialog from '../components/ConfirmDialog';
-import { getFYStart, getFYMonths, getMonthLabel, currentMonth } from '../utils/dateUtils';
+import { getFYMonths, getMonthLabel, currentMonth } from '../utils/dateUtils';
 
 const TYPES = ['Income', 'Expense', 'Saving'];
 
-export default function Budget({ fyStartMonth = 4 }) {
-  const fyStart = getFYStart(fyStartMonth);
+export default function Budget({ fyStart }) {
   const months = getFYMonths(fyStart);
   const [activeType, setActiveType] = useState('Expense');
   const [seedMonth, setSeedMonth] = useState(currentMonth());

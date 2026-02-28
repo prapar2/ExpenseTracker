@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, ReferenceLine } from 'recharts';
 import KPICard from '../components/KPICard';
@@ -7,18 +7,20 @@ import MonthPicker from '../components/MonthPicker';
 import BudgetVsActualTable from '../components/BudgetVsActualTable';
 import { useDashboard } from '../hooks/useDashboard';
 import { formatINR } from '../utils/formatUtils';
-import { currentMonth, getFYStart, getFYMonths, getMonthLabel, isElapsed, isCurrent } from '../utils/dateUtils';
+import { currentMonth, getFYMonths, getMonthLabel, isElapsed, isCurrent } from '../utils/dateUtils';
 
 const TYPE_COLORS = { Income: '#2E75B6', Expense: '#B03030', Saving: '#1A6B3A' };
 const DONUT_COLORS = ['#2E75B6','#B03030','#1A6B3A','#856404','#6B3A1B','#3A6B1B','#1B3A6B','#6B1B3A'];
 const TYPES = ['Income', 'Expense', 'Saving'];
 
-export default function Dashboard({ fyStartMonth = 4 }) {
+export default function Dashboard({ fyStart }) {
   const nav = useNavigate();
-  const fyStart = getFYStart(fyStartMonth);
   const fyMonths = getFYMonths(fyStart);
   const [view, setView] = useState('monthly');
   const [month, setMonth] = useState(currentMonth());
+
+  // Reset selected month when FY changes to avoid showing a month outside the new FY
+  useEffect(() => { if (!fyMonths.includes(month)) setMonth(fyMonths[0]); }, [fyStart]);
   const [donutType, setDonutType] = useState('Expense');
   const [donutDrill, setDonutDrill] = useState(null);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
@@ -153,8 +155,9 @@ export default function Dashboard({ fyStartMonth = 4 }) {
         </div>
       </div>
       {error && <p className="text-negative text-sm mb-4">{error}</p>}
-      {loading ? <p className="text-center text-gray-400 py-16">Loading dashboard…</p> : data && (
-        view === 'monthly' ? renderMonthly() : renderYearly()
+      {loading ? <p className="text-center text-gray-400 py-16">Loading dashboard…</p> : (
+        view === 'monthly' && data?.summary ? renderMonthly() :
+        view === 'yearly'  && data?.months  ? renderYearly()  : null
       )}
       {monthPickerOpen && (
         <MonthPicker months={fyMonths} selected={month} onChange={m => monthPickerCb && monthPickerCb(m)} onClose={() => { setMonthPickerOpen(false); setMonthPickerCb(null); }} />

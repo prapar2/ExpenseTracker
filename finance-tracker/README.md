@@ -1,6 +1,6 @@
 # Personal Finance Tracker
 
-A single-user personal finance tracking web application for recording transactions, managing budgets, and viewing financial dashboards — scoped to the current Financial Year (April–March by default). All amounts are in INR (₹).
+A single-user personal finance tracking web application for recording transactions, managing budgets, and viewing financial dashboards — scoped to a selected Financial Year (April–March by default). All amounts are in INR (₹).
 
 ---
 
@@ -184,8 +184,8 @@ finance-tracker/
 ├── .dockerignore                 # Excludes node_modules, dist, .env, *.db from build context
 │
 ├── server/
-│   ├── server.js                 # Express app + all route handlers (≤300 lines)
-│   ├── db.js                     # SQLite connection + all SQL queries (≤250 lines)
+│   ├── server.js                 # Express app + all route handlers (≤360 lines)
+│   ├── db.js                     # SQLite connection + all SQL queries incl. resetDatabase() (≤300 lines)
 │   ├── schema.sql                # CREATE TABLE statements
 │   └── seed.js                   # Default taxonomy seed data (76 entries)
 │
@@ -197,7 +197,7 @@ finance-tracker/
     ├── postcss.config.js
     └── src/
         ├── main.jsx              # ReactDOM.createRoot entry point
-        ├── App.jsx               # BrowserRouter + TaxonomyProvider + nav + Settings modal
+        ├── App.jsx               # BrowserRouter + TaxonomyProvider + nav + Settings modal (FY selector + factory reset)
         ├── index.css             # @tailwind base/components/utilities
         │
         ├── pages/
@@ -225,6 +225,7 @@ finance-tracker/
         ├── hooks/
         │   ├── useDashboard.js        # fetch() for monthly and yearly dashboard APIs
         │   ├── useBudget.js           # fetch() for budget GET + bulk upsert
+        │   ├── useReset.js            # fetch() for POST /api/reset (factory reset)
         │   ├── useTaxonomy.js         # Re-exports useTaxonomy + action functions
         │   └── useTransactions.js     # fetch() for transaction CRUD operations
         │
@@ -239,7 +240,7 @@ finance-tracker/
 ## Architecture & Design Decisions
 
 ### Financial Year Scoping
-All screens scope to the current FY only. The FY start month is configurable (default: April). The FY label (e.g. "FY 2025-26") is auto-derived. Changing the FY start month recalculates boundaries in-memory — no data is deleted.
+All screens scope to a single selected Financial Year at a time. The active FY is chosen from the Settings modal — a rolling window of 4 FYs is always available (2 years back, current, 1 year forward). The FY label (e.g. "FY 2025-26") is displayed in the navbar. Changing the selected FY recalculates boundaries in-memory across all pages — no data is deleted. The FY start month is fixed at April (configurable in code via `FY_START_MONTH` constant in `App.jsx`).
 
 ### Transaction Direction
 Three fixed types: **Income**, **Expense**, **Saving**. Amounts are always stored as positive values. Net = Income – Expense – Saving. Direction logic lives exclusively in `calcUtils.js`.
@@ -359,6 +360,7 @@ All endpoints prefixed with `/api`. All request and response bodies are JSON. No
 |--------|----------|-------------|
 | GET | `/api/dashboard/monthly?month=YYYY-MM` | Monthly summary KPIs + budget vs actual |
 | GET | `/api/dashboard/yearly?fy_start=YYYY-MM` | All 12 months data + YTD totals + yearly budget vs actual |
+| POST | `/api/reset` | Factory reset: deletes all transactions, budgets, taxonomy; re-seeds taxonomy |
 
 **Monthly response:**
 ```json
@@ -384,6 +386,8 @@ All endpoints prefixed with `/api`. All request and response bodies are JSON. No
 ```
 
 **Projection** (Actuals + Budget for future months) is computed on the frontend in `calcUtils.js`, not pre-calculated by the server.
+
+**Reset response:** `{ "reset": true }` on success; `{ "error": "..." }` with HTTP 500 on failure.
 
 ### HTTP Status Codes
 
@@ -459,8 +463,8 @@ Manage the taxonomy of transaction types, categories, and subcategories.
 
 ### Settings (modal, accessible from nav)
 
-- Single setting: **Financial Year Start Month** (dropdown, default April)
-- Changing recalculates FY boundaries across the entire app; no data is deleted
+- **Financial Year selector:** dropdown showing a rolling window of 4 FYs (e.g. FY 2023-24 through FY 2026-27). Switching FY instantly updates Dashboard, Transactions, and Budget pages.
+- **Factory Reset:** clears all transactions, budgets, and taxonomy entries, then re-seeds the default 76-entry taxonomy. Requires confirmation via dialog. The page reloads after reset to refresh all in-memory state.
 
 ---
 
@@ -501,6 +505,7 @@ All `fetch()` calls live exclusively in hook files. Pages call hooks; components
 | `useDashboard(view, month, fyStart)` | `{ data, loading, error }` | Fetches monthly or yearly dashboard data |
 | `useBudget(fyStart)` | `{ data, loading, error, saveBulk }` | Fetches budgets and exposes bulk upsert action |
 | `useTransactions(month)` | `{ data, loading, error, reload, createTransaction, updateTransaction, deleteTransaction }` | Fetches transactions and exposes CRUD actions |
+| `useReset()` | `{ reset, resetting, resetError }` | Calls `POST /api/reset`; re-throws on error so the caller can guard UI state |
 | `useTaxonomy()` | (from TaxonomyContext) | Re-exported from context for consistent import path |
 | `useTaxonomyActions()` | `{ createEntry, updateEntry, deleteEntry, reorderEntries }` | Taxonomy write operations (called from Categories page) |
 
@@ -516,8 +521,9 @@ Pure functions only — no API calls, no state reads, no side effects.
 |----------|-------------|
 | `todayISO()` | Returns today as `YYYY-MM-DD` |
 | `currentMonth()` | Returns current month as `YYYY-MM` |
-| `getFYStart(startMonth)` | Returns FY start as `YYYY-MM` given a 1-based start month |
+| `getFYStart(startMonth)` | Returns current FY start as `YYYY-MM` given a 1-based start month |
 | `getFYMonths(fyStart)` | Returns array of 12 `YYYY-MM` strings for the FY |
+| `getFYList(startMonth, yearsBack, yearsForward)` | Returns selectable FY list; default window = 2 years back + 1 year forward relative to current FY |
 | `getMonthLabel(yyyyMM)` | Returns human label e.g. `"Apr 2025"` |
 | `getFYLabel(fyStart)` | Returns FY label e.g. `"FY 2025-26"` |
 | `isElapsed(yyyyMM)` | True if month is before the current month |
@@ -606,16 +612,16 @@ Defined in `client/vite.config.js` under `theme.extend.colors`:
 
 ## File Line Limits
 
-Enforced per the technology specification:
+Enforced per the technology specification (limits increased by 20% to accommodate multi-year FY and factory reset features):
 
 | File | Limit | Current |
 |------|-------|---------|
-| `server/server.js` | 300 | 100 |
-| `server/db.js` | 250 | 212 |
-| `pages/Dashboard.jsx` | 350 | 164 |
-| `pages/Budget.jsx` | 350 | 143 |
-| `pages/Transactions.jsx` | 350 | 122 |
-| `pages/Categories.jsx` | 350 | 211 |
+| `server/server.js` | 360 | ~110 |
+| `server/db.js` | 300 | ~224 |
+| `pages/Dashboard.jsx` | 420 | ~165 |
+| `pages/Budget.jsx` | 420 | ~140 |
+| `pages/Transactions.jsx` | 420 | ~119 |
+| `pages/Categories.jsx` | 420 | ~211 |
 | `context/TaxonomyContext.jsx` | 200 | 52 |
 | `context/TransactionContext.jsx` | 200 | 37 |
 | `context/BudgetContext.jsx` | 200 | 36 |
@@ -632,7 +638,7 @@ Enforced per the technology specification:
 - **No UI component libraries** — all UI is hand-built with Tailwind utility classes
 - **No ORM** — raw SQL only, all queries contained in `server/db.js`
 - **No test files** — no `.test.js`, `.spec.js`, or test framework configuration
-- **No multi-year view** — all screens scope to current FY only
+- **Single FY view** — all screens scope to one selected FY at a time; multi-FY comparison not supported
 - **No export functionality** — data export not implemented in this version
 - **No authentication** — designed for single-user local/private deployment
 - **Node 25 compatibility** — requires `better-sqlite3` v11+ (v9 does not compile against Node 25 headers which require C++20)

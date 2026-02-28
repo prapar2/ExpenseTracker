@@ -204,9 +204,21 @@ function getDashboardYearly(fy_start) {
   return { months: monthData, ytd, budgetVsActual };
 }
 
+function resetDatabase() {
+  const doReset = db.transaction(() => {
+    db.prepare('DELETE FROM transactions').run();
+    db.prepare('DELETE FROM budgets').run();
+    db.prepare('DELETE FROM taxonomy').run();
+  });
+  doReset();
+  seedTaxonomy(db);
+  return { reset: true };
+}
+
 module.exports = {
   getTaxonomy, createTaxonomy, updateTaxonomy, deleteTaxonomy, reorderTaxonomy,
   getTransactions, createTransaction, updateTransaction, deleteTransaction,
   getBudgets, upsertBudgets,
   getDashboardMonthly, getDashboardYearly,
+  resetDatabase,
 };
