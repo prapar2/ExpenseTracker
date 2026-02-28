@@ -13,7 +13,7 @@ const FY_START_MONTH = 4; // April — fixed
 
 export default function App() {
   const currentFYStart = getFYStart(FY_START_MONTH);
-  const fyList = getFYList(FY_START_MONTH, 2, 1);
+  const fyList = getFYList(FY_START_MONTH, 1, 2);
   const [fyStart, setFyStart] = useState(currentFYStart);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
