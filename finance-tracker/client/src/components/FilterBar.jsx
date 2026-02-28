@@ -26,31 +26,44 @@ export default function FilterBar({ filters, onChange }) {
     else onChange({ ...filters, [key]: next });
   }
 
-  function MultiSelect({ label, options, field }) {
+  const typeStyles = {
+    Income: { active: 'bg-blue-100 border-blue-300 text-blue-700', inactive: 'border-gray-200 hover:border-gray-300' },
+    Expense: { active: 'bg-red-100 border-red-300 text-red-700', inactive: 'border-gray-200 hover:border-gray-300' },
+    Saving: { active: 'bg-green-100 border-green-300 text-green-700', inactive: 'border-gray-200 hover:border-gray-300' },
+  };
+
+  function MultiSelect({ label, options, field, typeAware = false }) {
     if (options.length === 0) return null;
     return (
       <div>
-        <label className="block text-xs text-gray-500 mb-1">{label}</label>
-        <div className="flex flex-wrap gap-1">
-          {options.map(opt => (
-            <button
-              key={opt}
-              onClick={() => toggleItem(field, opt)}
-              className={`text-xs px-2 py-1 rounded border ${filters[field].includes(opt) ? 'bg-accent text-white border-accent' : 'bg-white border-gray-300 hover:bg-gray-50'}`}
-            >
-              {opt}
-            </button>
-          ))}
+        <label className="block text-xs font-medium text-gray-600 mb-2">{label}</label>
+        <div className="flex flex-wrap gap-2">
+          {options.map(opt => {
+            const isActive = filters[field].includes(opt);
+            const style = typeAware && typeStyles[opt] 
+              ? (isActive ? typeStyles[opt].active : typeStyles[opt].inactive)
+              : (isActive ? 'bg-blue-600 text-white border-blue-600' : 'bg-white border-gray-200 hover:border-gray-300');
+            
+            return (
+              <button
+                key={opt}
+                onClick={() => toggleItem(field, opt)}
+                className={`text-xs px-3 py-1.5 rounded-full border transition-all ${style}`}
+              >
+                {opt}
+              </button>
+            );
+          })}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="bg-gray-50 border rounded p-3 space-y-2">
-      <MultiSelect label="Type" options={TYPES} field="types" />
-      <MultiSelect label="Category" options={[...new Set(allCats)]} field="categories" />
-      <MultiSelect label="Subcategory" options={[...new Set(allSubs)]} field="subcategories" />
+    <div className="space-y-3">
+      <MultiSelect label="Filter by Type" options={TYPES} field="types" typeAware />
+      <MultiSelect label="Filter by Category" options={[...new Set(allCats)]} field="categories" />
+      <MultiSelect label="Filter by Subcategory" options={[...new Set(allSubs)]} field="subcategories" />
     </div>
   );
 }

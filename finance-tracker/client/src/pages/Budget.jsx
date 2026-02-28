@@ -74,60 +74,114 @@ export default function Budget({ fyStart }) {
     });
   }, [taxonomy, hideZero, budgetMap, activeType, months]);
 
+  const typeColors = {
+    Income: { border: 'border-blue-500', text: 'text-blue-600' },
+    Expense: { border: 'border-red-500', text: 'text-red-600' },
+    Saving: { border: 'border-green-500', text: 'text-green-600' },
+  };
+
   return (
-    <div className="p-4 max-w-full">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-primary">Budget</h1>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Budget</h1>
+          <p className="text-sm text-gray-500 mt-1">Set and manage monthly budgets for your financial goals</p>
+        </div>
+        
+        {/* Options */}
         <div className="flex items-center gap-3 text-sm">
-          <label className="flex items-center gap-1 cursor-pointer">
-            <input type="checkbox" checked={showActuals} onChange={e => setShowActuals(e.target.checked)} className="rounded" />
-            Show Actuals
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={showActuals} 
+              onChange={e => setShowActuals(e.target.checked)} 
+              className="rounded text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-gray-600">Show Actuals</span>
           </label>
-          <label className="flex items-center gap-1 cursor-pointer">
-            <input type="checkbox" checked={hideZero} onChange={e => setHideZero(e.target.checked)} className="rounded" />
-            Hide zero rows
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={hideZero} 
+              onChange={e => setHideZero(e.target.checked)} 
+              className="rounded text-blue-600 focus:ring-blue-500"
+            />
+            <span className="text-gray-600">Hide zero rows</span>
           </label>
         </div>
       </div>
 
-      {/* Type tabs */}
-      <div className="flex border-b mb-4">
+      {/* Type tabs - Modern */}
+      <div className="flex border-b border-gray-200">
         {TYPES.map(t => (
-          <button key={t} onClick={() => setActiveType(t)}
-            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${activeType === t ? 'border-accent text-accent' : 'border-transparent text-gray-600 hover:text-gray-900'}`}>
+          <button 
+            key={t} 
+            onClick={() => setActiveType(t)}
+            className={`px-6 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              activeType === t 
+                ? `${typeColors[t].border} ${typeColors[t].text}`
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
             {t}
           </button>
         ))}
       </div>
 
-      {/* Seed month + Copy forward */}
-      <div className="flex items-center gap-4 mb-4 bg-gray-50 border rounded p-3 text-sm">
-        <div className="flex items-center gap-2">
-          <label className="text-gray-700 font-medium">Seed month:</label>
-          <select value={seedMonth} onChange={e => setSeedMonth(e.target.value)} className="border rounded px-2 py-1 text-sm">
-            {months.map(m => <option key={m} value={m}>{getMonthLabel(m)}</option>)}
-          </select>
+      {/* Seed month + Copy forward - Modern Card */}
+      <div className="card p-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-700">Seed month:</label>
+            <select 
+              value={seedMonth} 
+              onChange={e => setSeedMonth(e.target.value)} 
+              className="select w-auto"
+            >
+              {months.map(m => <option key={m} value={m}>{getMonthLabel(m)}</option>)}
+            </select>
+          </div>
+          <button
+            onClick={() => setConfirm({ type: 'copyForward' })}
+            className="btn-accent text-sm"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            </svg>
+            Copy {getMonthLabel(seedMonth)} → All Months
+          </button>
         </div>
-        <button
-          onClick={() => setConfirm({ type: 'copyForward' })}
-          className="px-3 py-1 bg-accent text-white rounded hover:opacity-90 text-sm">
-          Copy {getMonthLabel(seedMonth)} → All Months
-        </button>
       </div>
 
-      {error && <p className="text-negative text-sm mb-2">{error}</p>}
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-100 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+          <svg className="w-5 h-5 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
+
+      {/* Loading State */}
       {loading ? (
-        <p className="text-center text-gray-400 py-8">Loading budgets…</p>
+        <div className="card p-12 text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading budgets...</p>
+        </div>
       ) : (
-        <BudgetGrid
-          type={activeType}
-          months={months}
-          taxonomy={visibleTaxonomy}
-          budgetMap={budgetMap}
-          actuals={actualsMap}
-          showActuals={showActuals}
-          onSave={saveBulk}
-        />
+        <div className="card overflow-hidden">
+          <BudgetGrid
+            type={activeType}
+            months={months}
+            taxonomy={visibleTaxonomy}
+            budgetMap={budgetMap}
+            actuals={actualsMap}
+            showActuals={showActuals}
+            onSave={saveBulk}
+          />
+        </div>
       )}
 
       {confirm?.type === 'copyForward' && (
