@@ -86,9 +86,21 @@
   .btn-primary {
     background-color: #1B3A6B;
     color: white;
+    border: none;
+    padding: 0.625rem 1.25rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    transition: all 150ms ease;
   }
   .btn-primary:hover:not(:disabled) {
     background-color: #254b7a;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  }
+  .btn-primary:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   }
   
   /* Accent button */
@@ -104,18 +116,36 @@
   .btn-ghost {
     background-color: transparent;
     color: #374151;
+    border: 1px solid #d1d5db;
+    padding: 0.625rem 1.25rem;
+    font-weight: 500;
+    border-radius: 0.5rem;
+    transition: all 150ms ease;
   }
   .btn-ghost:hover:not(:disabled) {
     background-color: #f3f4f6;
+    border-color: #9ca3af;
   }
   
   /* Danger button */
   .btn-danger {
     background-color: #B03030;
     color: white;
+    border: none;
+    padding: 0.625rem 1.25rem;
+    font-weight: 600;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    transition: all 150ms ease;
   }
   .btn-danger:hover:not(:disabled) {
     background-color: #991b1b;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  }
+  .btn-danger:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
   }
   
   /* Form inputs */
@@ -126,6 +156,7 @@
     border: 1px solid #d1d5db;
     border-radius: 0.5rem;
     transition: border-color 150ms ease, box-shadow 150ms ease;
+    height: 42px;
   }
   .input:focus {
     border-color: #2E75B6;
@@ -145,6 +176,7 @@
     background-color: white;
     cursor: pointer;
     transition: border-color 150ms ease, box-shadow 150ms ease;
+    height: 42px;
   }
   .select:focus {
     border-color: #2E75B6;
@@ -227,20 +259,23 @@
   
   /* Navigation link */
   .nav-link {
-    padding: 0.5rem 1rem;
-    font-size: 0.875rem;
+    padding: 0.625rem 1.25rem;
+    font-size: 0.9375rem;
     font-weight: 500;
-    border-radius: 0.5rem;
-    transition: all 150ms ease;
+    border-radius: 0.75rem;
+    transition: all 200ms ease;
+    position: relative;
   }
   
   .nav-link-active {
-    background-color: #2E75B6;
+    background-color: rgba(255, 255, 255, 0.25);
     color: white;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   }
   
   .nav-link-inactive {
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.75);
   }
   .nav-link-inactive:hover {
     color: white;

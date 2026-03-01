@@ -19,8 +19,8 @@ export default function App() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const { reset, resetting, resetError } = useReset();
 
-  const navLinkBase = "nav-link-inactive";
-  const navLinkActive = "nav-link-active";
+  const navLinkBase = "nav-link nav-link-inactive";
+  const navLinkActive = "nav-link nav-link-active";
 
   async function handleReset() {
     try {
@@ -48,7 +48,7 @@ export default function App() {
                 </div>
 
                 {/* Navigation Links */}
-                <div className="flex items-center gap-1">
+                <div className="hidden md:flex items-center gap-1 px-1">
                   <NavLink to="/" end className={({ isActive }) => isActive ? navLinkActive : navLinkBase}>
                     <span className="flex items-center gap-2">
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
