@@ -1,6 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const multer = require('multer');
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const { parseImportFile } = require('./import');
 const db = require('./db');
 
 const app = express();
@@ -91,8 +94,36 @@ app.get('/api/dashboard/yearly', (req, res) => {
 });
 
 app.post('/api/reset', (req, res) => {
-  try { res.json(db.resetDatabase()); }
+  try {
+    const { fy_start, full } = req.body;
+    
+    // If full reset is requested or no parameters provided, do full database reset
+    if (full || (!fy_start && !full)) {
+      res.json(db.resetDatabase());
+    } else {
+      // Reset only the specified FY
+      res.json(db.resetFy(fy_start));
+    }
+  }
   catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Import route
+app.post('/api/import', upload.single('file'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  const { transactions, budgets, errors } = parseImportFile(req.file.buffer);
+
+  // Insert transactions
+  const txResult = db.bulkInsertTransactions(transactions);
+
+  // Upsert budgets
+  const bgResult = db.bulkUpsertBudgets(budgets);
+
+  res.json({
+    transactions: { inserted: txResult.inserted, skipped: transactions.length - txResult.inserted },
+    budgets:      { upserted: bgResult.upserted },
+    errors        // array of { row, reason } objects
+  });
 });
 
 // Serve client in production

@@ -1,14 +1,29 @@
 import { useState } from 'react';
 
+const API_URL = import.meta.env.VITE_API_URL || '';
+
 export function useReset() {
   const [resetting, setResetting] = useState(false);
   const [resetError, setResetError] = useState(null);
 
-  async function reset() {
+  async function reset(options = {}) {
+    const { fyStart, fullReset } = options;
     setResetting(true);
     setResetError(null);
     try {
-      const res = await fetch('/api/reset', { method: 'POST' });
+      const body = {};
+      
+      if (fullReset) {
+        body.full = true;
+      } else if (fyStart) {
+        body.fy_start = fyStart;
+      }
+      
+      const res = await fetch(`${API_URL}/api/reset`, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined
+      });
       if (!res.ok) {
         const b = await res.json();
         throw new Error(b.error || `HTTP ${res.status}`);

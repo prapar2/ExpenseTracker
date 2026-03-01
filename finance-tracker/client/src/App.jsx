@@ -6,6 +6,7 @@ import Transactions from './pages/Transactions';
 import Budget from './pages/Budget';
 import Categories from './pages/Categories';
 import ConfirmDialog from './components/ConfirmDialog';
+import ImportDialog from './components/ImportDialog';
 import { getFYLabel, getFYStart, getFYList } from './utils/dateUtils';
 import { useReset } from './hooks/useReset';
 
@@ -16,7 +17,9 @@ export default function App() {
   const fyList = getFYList(FY_START_MONTH, 1, 2);
   const [fyStart, setFyStart] = useState(currentFYStart);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetType, setResetType] = useState('fy'); // 'fy' or 'full'
   const { reset, resetting, resetError } = useReset();
 
   const navLinkBase = "nav-link nav-link-inactive";
@@ -24,9 +27,20 @@ export default function App() {
 
   async function handleReset() {
     try {
-      await reset();
+      if (resetType === 'full') {
+        await reset({ fullReset: true });
+      } else {
+        await reset({ fyStart: fyStart });
+      }
       window.location.reload();
     } catch { /* resetError displayed in modal */ }
+  }
+
+  function getResetConfirmMessage() {
+    if (resetType === 'full') {
+      return "This will permanently delete ALL transactions, budgets, and categories, then re-seed the default taxonomy. This cannot be undone. Are you sure?";
+    }
+    return `This will permanently delete all transactions and budgets for ${getFYLabel(fyStart)}. Categories will be preserved. This cannot be undone. Are you sure?`;
   }
 
   return (
@@ -87,6 +101,17 @@ export default function App() {
                   <div className="bg-white/10 backdrop-blur-sm rounded-lg px-3 py-1.5">
                     <span className="text-white/90 text-sm font-medium">{getFYLabel(fyStart)}</span>
                   </div>
+                  
+                  {/* Import Button */}
+                  <button 
+                    onClick={() => setShowImport(true)} 
+                    className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-150"
+                    title="Import"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                  </button>
                   
                   {/* Settings Button */}
                   <button 
@@ -159,9 +184,41 @@ export default function App() {
                         </svg>
                       </div>
                       <div className="flex-1">
-                        <p className="text-sm font-semibold text-gray-900 mb-1">Factory Reset</p>
+                        <p className="text-sm font-semibold text-gray-900 mb-2">Factory Reset</p>
+                        
+                        {/* Reset Type Selector */}
+                        <div className="mb-3">
+                          <label className="flex items-center gap-2 cursor-pointer mb-2">
+                            <input
+                              type="radio"
+                              name="resetType"
+                              checked={resetType === 'fy'}
+                              onChange={() => setResetType('fy')}
+                              className="w-4 h-4 text-blue-600"
+                            />
+                            <span className="text-xs text-gray-700">
+                              Reset Selected FY ({getFYLabel(fyStart)})
+                            </span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="radio"
+                              name="resetType"
+                              checked={resetType === 'full'}
+                              onChange={() => setResetType('full')}
+                              className="w-4 h-4 text-blue-600"
+                            />
+                            <span className="text-xs text-gray-700">
+                              Reset Entire Database
+                            </span>
+                          </label>
+                        </div>
+
                         <p className="text-xs text-gray-500 mb-3">
-                          Clears all transactions, budgets, and categories, then re-seeds the default taxonomy. This cannot be undone.
+                          {resetType === 'full' 
+                            ? "Clears all transactions, budgets, and categories, then re-seeds the default taxonomy. This cannot be undone."
+                            : "Clears transactions and budgets for the selected FY only. Categories are preserved. This cannot be undone."
+                          }
                         </p>
                         {resetError && (
                           <div className="bg-red-100 border border-red-200 rounded-lg px-3 py-2 mb-3">
@@ -211,10 +268,15 @@ export default function App() {
           {/* Reset Confirm Dialog */}
           {showResetConfirm && (
             <ConfirmDialog
-              message="This will permanently delete ALL transactions, budgets, and categories, then re-seed the default taxonomy. This cannot be undone. Are you sure?"
+              message={getResetConfirmMessage()}
               onConfirm={handleReset}
               onCancel={() => setShowResetConfirm(false)}
             />
+          )}
+
+          {/* Import Dialog */}
+          {showImport && (
+            <ImportDialog onClose={() => setShowImport(false)} />
           )}
         </div>
       </TaxonomyProvider>
