@@ -44,35 +44,83 @@ export default function Dashboard({ fyStart }) {
 
     return (
       <div className="space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <KPICard label="Total Income" amount={summary.income} colorClass="text-income" onClick={() => drillTo(month, 'Income', null, null)} />
-          <KPICard label="Total Expense" amount={summary.expense} colorClass="text-expense" onClick={() => drillTo(month, 'Expense', null, null)} />
-          <KPICard label="Total Saving" amount={summary.saving} colorClass="text-saving" onClick={() => drillTo(month, 'Saving', null, null)} />
-          <KPICard label="Net" amount={summary.net} colorClass={summary.net >= 0 ? 'text-positive' : 'text-negative'} onClick={() => drillTo(month, null, null, null)} />
+        {/* KPI Cards - Modern Card Design */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <KPICard label="Total Income" amount={summary.income} colorClass="text-blue-600" onClick={() => drillTo(month, 'Income', null, null)} />
+          <KPICard label="Total Expense" amount={summary.expense} colorClass="text-red-600" onClick={() => drillTo(month, 'Expense', null, null)} />
+          <KPICard label="Total Saving" amount={summary.saving} colorClass="text-green-600" onClick={() => drillTo(month, 'Saving', null, null)} />
+          <KPICard label="Net" amount={summary.net} colorClass={summary.net >= 0 ? 'text-green-600' : 'text-red-600'} onClick={() => drillTo(month, null, null, null)} />
         </div>
-        <div className="bg-white border rounded-lg overflow-hidden">
-          <h3 className="px-4 py-3 font-semibold text-primary border-b">Budget vs Actual</h3>
+
+        {/* Budget vs Actual - Modern Card */}
+        <div className="card overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 className="font-semibold text-gray-900">Budget vs Actual</h3>
+            <span className="text-xs text-gray-500">{getMonthLabel(month)}</span>
+          </div>
           <BudgetVsActualTable rows={budgetVsActual} onDrillActual={(t, c, s) => drillTo(month, t, c, s)} />
         </div>
-        <div className="bg-white border rounded-lg p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-primary">{donutDrill ? `${donutDrill} Breakdown` : 'Spending Breakdown'}</h3>
+
+        {/* Spending Breakdown - Modern Card */}
+        <div className="card p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-semibold text-gray-900">{donutDrill ? `${donutDrill} Breakdown` : 'Spending Breakdown'}</h3>
+              <p className="text-xs text-gray-500 mt-0.5">Click segments to drill down</p>
+            </div>
             <div className="flex gap-2">
-              {donutDrill && <button onClick={() => setDonutDrill(null)} className="text-xs text-accent hover:underline">← Back</button>}
+              {donutDrill && (
+                <button onClick={() => setDonutDrill(null)} className="btn-ghost text-sm py-1.5">
+                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Back
+                </button>
+              )}
               {TYPES.map(t => (
-                <button key={t} onClick={() => { setDonutType(t); setDonutDrill(null); }}
-                  className={`text-xs px-2 py-1 rounded border ${donutType === t ? 'bg-accent text-white border-accent' : 'border-gray-300 hover:bg-gray-50'}`}>{t}</button>
+                <button 
+                  key={t} 
+                  onClick={() => { setDonutType(t); setDonutDrill(null); }}
+                  className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-all ${
+                    donutType === t 
+                      ? 'bg-blue-600 text-white shadow-sm' 
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {t}
+                </button>
               ))}
             </div>
           </div>
-          {activeDonut.length === 0 ? <p className="text-center text-gray-400 py-8">No {donutType} data this month.</p> : (
+          {activeDonut.length === 0 ? (
+            <div className="text-center py-12">
+              <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+              </svg>
+              <p className="text-gray-400">No {donutType} data this month.</p>
+            </div>
+          ) : (
             <div className="flex justify-center">
-              <PieChart width={400} height={280}>
-                <Pie data={activeDonut} cx={200} cy={130} innerRadius={70} outerRadius={110} dataKey="value" nameKey="name"
-                  onClick={(e) => { if (!donutDrill) setDonutDrill(e.name); }}>
+              <PieChart width={400} height={300}>
+                <Pie 
+                  data={activeDonut} 
+                  cx={200} 
+                  cy={140} 
+                  innerRadius={80} 
+                  outerRadius={120} 
+                  dataKey="value" 
+                  nameKey="name"
+                  onClick={(e) => { if (!donutDrill) setDonutDrill(e.name); }}
+                  paddingAngle={2}
+                >
                   {activeDonut.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
                 </Pie>
-                <Tooltip formatter={(v) => formatINR(v)} /><Legend />
+                <Tooltip formatter={(v) => formatINR(v)} />
+                <Legend 
+                  wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                  formatter={(value) => <span className="text-gray-600">{value}</span>}
+                />
               </PieChart>
             </div>
           )}
@@ -98,40 +146,59 @@ export default function Dashboard({ fyStart }) {
     return (
       <div className="space-y-6">
         <ProjectionCard monthData={monthData} fyStart={fyStart} />
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <KPICard label="Income YTD" amount={ytd.income} colorClass="text-income" onClick={() => openMonthPicker(m => drillTo(m, 'Income', null, null))} />
-          <KPICard label="Expense YTD" amount={ytd.expense} colorClass="text-expense" onClick={() => openMonthPicker(m => drillTo(m, 'Expense', null, null))} />
-          <KPICard label="Saving YTD" amount={ytd.saving} colorClass="text-saving" onClick={() => openMonthPicker(m => drillTo(m, 'Saving', null, null))} />
-          <KPICard label="Net YTD" amount={ytd.net} colorClass={ytd.net >= 0 ? 'text-positive' : 'text-negative'} onClick={() => openMonthPicker(m => drillTo(m, null, null, null))} />
-          <div className="bg-white rounded-lg shadow p-4"><p className="text-xs text-gray-500 mb-1">Months Elapsed</p><p className="text-2xl font-bold">{elapsed}</p></div>
-          <div className="bg-white rounded-lg shadow p-4"><p className="text-xs text-gray-500 mb-1">Months Remaining</p><p className="text-2xl font-bold">{remaining}</p></div>
+        
+        {/* KPI Cards with Stats */}
+        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
+          <KPICard label="Income YTD" amount={ytd.income} colorClass="text-blue-600" onClick={() => openMonthPicker(m => drillTo(m, 'Income', null, null))} />
+          <KPICard label="Expense YTD" amount={ytd.expense} colorClass="text-red-600" onClick={() => openMonthPicker(m => drillTo(m, 'Expense', null, null))} />
+          <KPICard label="Saving YTD" amount={ytd.saving} colorClass="text-green-600" onClick={() => openMonthPicker(m => drillTo(m, 'Saving', null, null))} />
+          <KPICard label="Net YTD" amount={ytd.net} colorClass={ytd.net >= 0 ? 'text-green-600' : 'text-red-600'} onClick={() => openMonthPicker(m => drillTo(m, null, null, null))} />
+          
+          {/* Stats Cards */}
+          <div className="card p-4 flex flex-col items-center justify-center">
+            <p className="text-xs text-gray-500 mb-1">Months Elapsed</p>
+            <p className="text-3xl font-bold text-blue-600">{elapsed}</p>
+          </div>
+          <div className="card p-4 flex flex-col items-center justify-center">
+            <p className="text-xs text-gray-500 mb-1">Months Remaining</p>
+            <p className="text-3xl font-bold text-gray-600">{remaining}</p>
+          </div>
         </div>
-        <div className="bg-white border rounded-lg p-4">
-          <h3 className="font-semibold text-primary mb-3">Month-by-Month Overview</h3>
-          <ResponsiveContainer width="100%" height={280}>
+
+        {/* Month-by-Month Chart - Modern Card */}
+        <div className="card p-5">
+          <h3 className="font-semibold text-gray-900 mb-4">Month-by-Month Overview</h3>
+          <ResponsiveContainer width="100%" height={300}>
             <BarChart data={barData} margin={{ top: 5, right: 5, bottom: 5, left: 10 }}>
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
-              <Tooltip formatter={(v) => formatINR(v)} /><Legend />
-              {TYPES.map(t => <Bar key={t} dataKey={t} fill={TYPE_COLORS[t]} />)}
+              <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={{ stroke: '#e5e7eb' }} />
+              <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} axisLine={{ stroke: '#e5e7eb' }} />
+              <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+              <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+              {TYPES.map(t => <Bar key={t} dataKey={t} fill={TYPE_COLORS[t]} radius={[4, 4, 0, 0]} />)}
             </BarChart>
           </ResponsiveContainer>
         </div>
-        <div className="bg-white border rounded-lg p-4">
-          <h3 className="font-semibold text-primary mb-3">Net Balance Trend</h3>
-          <ResponsiveContainer width="100%" height={220}>
+
+        {/* Net Balance Trend - Modern Card */}
+        <div className="card p-5">
+          <h3 className="font-semibold text-gray-900 mb-4">Net Balance Trend</h3>
+          <ResponsiveContainer width="100%" height={250}>
             <LineChart data={netLine} margin={{ top: 5, right: 5, bottom: 5, left: 10 }}
               onClick={() => openMonthPicker(m => drillTo(m, null, null, null))}>
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} />
-              <Tooltip formatter={(v) => formatINR(v)} />
-              <ReferenceLine y={0} stroke="#aaa" />
-              <Line type="monotone" dataKey="net" stroke="#1B3A6B" strokeWidth={2} dot={{ r: 4 }} />
+              <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={{ stroke: '#e5e7eb' }} />
+              <YAxis tick={{ fontSize: 12, fill: '#6b7280' }} tickFormatter={v => `₹${(v/1000).toFixed(0)}k`} axisLine={{ stroke: '#e5e7eb' }} />
+              <Tooltip formatter={(v) => formatINR(v)} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+              <ReferenceLine y={0} stroke="#d1d5db" strokeDasharray="4 4" />
+              <Line type="monotone" dataKey="net" stroke="#1B3A6B" strokeWidth={3} dot={{ r: 5, fill: '#1B3A6B', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
-        <div className="bg-white border rounded-lg overflow-hidden">
-          <h3 className="px-4 py-3 font-semibold text-primary border-b">Annual Budget vs Actual</h3>
+
+        {/* Annual Budget vs Actual - Modern Card */}
+        <div className="card overflow-hidden">
+          <div className="px-5 py-4 border-b border-gray-100">
+            <h3 className="font-semibold text-gray-900">Annual Budget vs Actual</h3>
+          </div>
           <BudgetVsActualTable rows={budgetVsActual} onDrillActual={(t, c, s) => openMonthPicker(m => drillTo(m, t, c, s))} />
         </div>
       </div>
@@ -139,26 +206,72 @@ export default function Dashboard({ fyStart }) {
   }
 
   return (
-    <div className="p-4 max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-primary">Dashboard</h1>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
+          <p className="text-sm text-gray-500 mt-1">Track your financial performance</p>
+        </div>
+        
+        {/* View Toggle */}
         <div className="flex items-center gap-3">
-          <div className="flex border rounded overflow-hidden">
-            <button onClick={() => setView('monthly')} className={`px-3 py-1 text-sm ${view === 'monthly' ? 'bg-accent text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>Monthly</button>
-            <button onClick={() => setView('yearly')} className={`px-3 py-1 text-sm ${view === 'yearly' ? 'bg-accent text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}`}>Yearly</button>
+          <div className="bg-gray-100 p-1 rounded-lg inline-flex">
+            <button 
+              onClick={() => setView('monthly')} 
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                view === 'monthly' 
+                  ? 'bg-white text-gray-900 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Monthly
+            </button>
+            <button 
+              onClick={() => setView('yearly')} 
+              className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+                view === 'yearly' 
+                  ? 'bg-white text-gray-900 shadow-sm' 
+                  : 'text-gray-600 hover:text-gray-900'
+              }`}
+            >
+              Yearly
+            </button>
           </div>
+          
           {view === 'monthly' && (
-            <select value={month} onChange={e => setMonth(e.target.value)} className="border rounded px-2 py-1 text-sm">
+            <select 
+              value={month} 
+              onChange={e => setMonth(e.target.value)} 
+              className="input w-auto"
+            >
               {fyMonths.map(m => <option key={m} value={m}>{getMonthLabel(m)}</option>)}
             </select>
           )}
         </div>
       </div>
-      {error && <p className="text-negative text-sm mb-4">{error}</p>}
-      {loading ? <p className="text-center text-gray-400 py-16">Loading dashboard…</p> : (
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-red-100 border border-red-200 rounded-lg p-4 flex items-center gap-3">
+          <svg className="w-5 h-5 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p className="text-sm text-red-600">{error}</p>
+        </div>
+      )}
+
+      {/* Loading State */}
+      {loading ? (
+        <div className="card p-12 text-center">
+          <div className="animate-spin w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-500">Loading dashboard...</p>
+        </div>
+      ) : (
         view === 'monthly' && data?.summary ? renderMonthly() :
         view === 'yearly'  && data?.months  ? renderYearly()  : null
       )}
+
       {monthPickerOpen && (
         <MonthPicker months={fyMonths} selected={month} onChange={m => monthPickerCb && monthPickerCb(m)} onClose={() => { setMonthPickerOpen(false); setMonthPickerCb(null); }} />
       )}

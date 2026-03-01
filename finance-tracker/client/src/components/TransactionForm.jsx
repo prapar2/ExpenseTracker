@@ -67,54 +67,128 @@ export default function TransactionForm({ initial, onSave, onCancel, fyStart }) 
 
   const field = (label, key, content) => (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
       {content}
-      {errors[key] && <p className="text-negative text-xs mt-1">{errors[key]}</p>}
+      {errors[key] && <p className="text-xs text-red-600 mt-1">{errors[key]}</p>}
     </div>
   );
 
+  const typeButtonStyles = {
+    Income: { active: 'bg-blue-100 border-blue-500 text-blue-700', inactive: 'bg-white border-gray-300 text-gray-600 hover:border-gray-400' },
+    Expense: { active: 'bg-red-100 border-red-500 text-red-700', inactive: 'bg-white border-gray-300 text-gray-600 hover:border-gray-400' },
+    Saving: { active: 'bg-green-100 border-green-500 text-green-700', inactive: 'bg-white border-gray-300 text-gray-600 hover:border-gray-400' },
+  };
+
   return (
-    <form onSubmit={handleSubmit} className="bg-white border rounded-lg p-4 space-y-4">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {field('Date', 'date',
-          <input type="date" value={form.date} min={fyStartDate} max={today}
+          <input 
+            type="date" 
+            value={form.date} 
+            min={fyStartDate} 
+            max={today}
             onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-            className="w-full border rounded px-3 py-2 text-sm" />
+            className="input" 
+          />
         )}
         {field('Type', 'type',
-          <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm">
-            {TYPES.map(t => <option key={t}>{t}</option>)}
-          </select>
+          <div className="flex gap-2">
+            {TYPES.map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setForm(f => ({ ...f, type: t }))}
+                className={`flex-1 py-2 px-3 text-sm font-medium rounded-lg border transition-all ${form.type === t ? typeButtonStyles[t].active : typeButtonStyles[t].inactive}`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         )}
         {field('Category', 'category',
-          <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm">
+          <select 
+            value={form.category} 
+            onChange={e => setForm(f => ({ ...f, category: e.target.value }))} 
+            className="select"
+          >
             <option value="">— Select —</option>
             {categories.map(c => <option key={c}>{c}</option>)}
           </select>
         )}
         {field('Subcategory', 'subcategory',
-          <select value={form.subcategory} onChange={e => setForm(f => ({ ...f, subcategory: e.target.value }))} className="w-full border rounded px-3 py-2 text-sm" disabled={!form.category}>
+          <select 
+            value={form.subcategory} 
+            onChange={e => setForm(f => ({ ...f, subcategory: e.target.value }))} 
+            className="select" 
+            disabled={!form.category}
+          >
             <option value="">— Select —</option>
             {subcategories.map(s => <option key={s}>{s}</option>)}
           </select>
         )}
         {field('Amount (₹)', 'amount',
-          <input type="number" min="0.01" step="0.01" value={form.amount}
-            onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-            className="w-full border rounded px-3 py-2 text-sm" placeholder="0.00" />
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
+            <input 
+              type="number" 
+              min="0.01" 
+              step="0.01" 
+              value={form.amount}
+              onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+              className="input pl-7" 
+              placeholder="0.00" 
+            />
+          </div>
         )}
         {field('Note', 'note',
-          <input type="text" value={form.note} maxLength={200}
+          <input 
+            type="text" 
+            value={form.note} 
+            maxLength={200}
             onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
-            className="w-full border rounded px-3 py-2 text-sm" placeholder="Optional" />
+            className="input" 
+            placeholder="Optional note..." 
+          />
         )}
       </div>
-      {errors.submit && <p className="text-negative text-sm">{errors.submit}</p>}
-      <div className="flex gap-2">
-        <button type="submit" disabled={saving} className="px-4 py-2 bg-primary text-white rounded hover:opacity-90 disabled:opacity-50">
-          {saving ? 'Saving…' : (initial ? 'Update' : 'Save')}
+      {errors.submit && (
+        <div className="bg-red-100 border border-red-200 rounded-lg px-4 py-2">
+          <p className="text-sm text-red-600">{errors.submit}</p>
+        </div>
+      )}
+      <div className="flex gap-3 pt-2">
+        <button 
+          type="submit" 
+          disabled={saving} 
+          className="btn-primary"
+        >
+          {saving ? (
+            <span className="flex items-center gap-2">
+              <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Saving...
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              {initial ? 'Update' : 'Save'} Transaction
+            </span>
+          )}
         </button>
-        {onCancel && <button type="button" onClick={onCancel} className="px-4 py-2 border border-gray-300 rounded hover:bg-gray-50">Cancel</button>}
+        {onCancel && (
+          <button 
+            type="button" 
+            onClick={onCancel} 
+            className="btn-ghost"
+          >
+            Cancel
+          </button>
+        )}
       </div>
     </form>
   );
