@@ -215,10 +215,67 @@ function resetDatabase() {
   return { reset: true };
 }
 
+// Reset data for a specific financial year only
+// Deletes transactions and budgets for that FY, preserves taxonomy
+function resetFy(fyStart) {
+  // Calculate the FY date range (April to March)
+  const [fyYear, fyMonth] = fyStart.split('-').map(Number);
+  const startDate = `${fyStart}-01`; // First day of FY start month
+  
+  // End date is 12 months later minus 1 day
+  const endDateObj = new Date(fyYear, fyMonth - 1 + 12, 0); // Last day of 12th month
+  const endDate = `${endDateObj.getFullYear()}-${String(endDateObj.getMonth() + 1).padStart(2, '0')}-${String(endDateObj.getDate()).padStart(2, '0')}`;
+  
+  const doReset = db.transaction(() => {
+    // Delete transactions within the FY date range
+    db.prepare('DELETE FROM transactions WHERE date >= ? AND date <= ?').run(startDate, endDate);
+    // Delete budgets for this FY
+    db.prepare('DELETE FROM budgets WHERE fy_start = ?').run(fyStart);
+  });
+  doReset();
+  return { reset: true, fyStart };
+}
+
+// Bulk insert transactions — skips rows that fail DB constraints
+// Returns { inserted: N }
+function bulkInsertTransactions(rows) {
+  const stmt = db.prepare(
+    'INSERT INTO transactions (date, type, category, subcategory, amount, note) VALUES (?,?,?,?,?,?)'
+  );
+  const insertMany = db.transaction((rows) => {
+    let inserted = 0;
+    for (const r of rows) {
+      try {
+        stmt.run(r.date, r.type, r.category, r.subcategory, r.amount, r.note ?? null);
+        inserted++;
+      } catch (_) { /* skip constraint violations silently */ }
+    }
+    return inserted;
+  });
+  return { inserted: insertMany(rows) };
+}
+
+// Bulk upsert budgets — idempotent, uses INSERT OR REPLACE
+// Returns { upserted: N }
+function bulkUpsertBudgets(rows) {
+  const stmt = db.prepare(
+    `INSERT OR REPLACE INTO budgets (fy_start, month, type, category, subcategory, amount)
+     VALUES (?,?,?,?,?,?)`
+  );
+  const upsertMany = db.transaction((rows) => {
+    for (const r of rows) {
+      stmt.run(r.fy_start, r.month, r.type, r.category, r.subcategory, r.amount);
+    }
+    return rows.length;
+  });
+  return { upserted: upsertMany(rows) };
+}
+
 module.exports = {
   getTaxonomy, createTaxonomy, updateTaxonomy, deleteTaxonomy, reorderTaxonomy,
   getTransactions, createTransaction, updateTransaction, deleteTransaction,
   getBudgets, upsertBudgets,
   getDashboardMonthly, getDashboardYearly,
-  resetDatabase,
+  resetDatabase, resetFy,
+  bulkInsertTransactions, bulkUpsertBudgets,
 };

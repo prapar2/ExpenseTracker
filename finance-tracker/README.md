@@ -186,6 +186,7 @@ finance-tracker/
 ├── server/
 │   ├── server.js                 # Express app + all route handlers (≤360 lines)
 │   ├── db.js                     # SQLite connection + all SQL queries incl. resetDatabase() (≤300 lines)
+│   ├── import.js                 # Excel file parsing for import feature (~362 lines)
 │   ├── schema.sql                # CREATE TABLE statements
 │   └── seed.js                   # Default taxonomy seed data (76 entries)
 │
@@ -197,7 +198,7 @@ finance-tracker/
     ├── postcss.config.js
     └── src/
         ├── main.jsx              # ReactDOM.createRoot entry point
-        ├── App.jsx               # BrowserRouter + TaxonomyProvider + nav + Settings modal (FY selector + factory reset)
+        ├── App.jsx               # BrowserRouter + TaxonomyProvider + nav + Settings modal + Import modal (FY selector + factory reset + import) (241 lines)
         ├── index.css             # @tailwind base/components/utilities
         │
         ├── pages/
@@ -211,10 +212,11 @@ finance-tracker/
         │   ├── BudgetVsActualTable.jsx # Reusable Budget vs Actual table (monthly + yearly)
         │   ├── ConfirmDialog.jsx       # Modal confirmation dialog (dismissible by button only)
         │   ├── FilterBar.jsx          # Multi-select Type/Category/Subcategory filter pills
+        │   ├── ImportDialog.jsx       # Modal dialog for Excel import (upload + results display)
         │   ├── KPICard.jsx            # Single metric card with optional drill-through click
         │   ├── MonthPicker.jsx        # 12-month grid modal picker
         │   ├── ProjectionCard.jsx     # Yearly projection display with warning banner
-        │   ├── TransactionForm.jsx    # Controlled form for create/edit transactions
+        │   ├── TransactionForm.jsx     # Controlled form for create/edit transactions
         │   └── TransactionList.jsx    # Sortable table with edit/delete actions
         │
         ├── context/
@@ -243,7 +245,12 @@ finance-tracker/
 All screens scope to a single selected Financial Year at a time. The active FY is chosen from the Settings modal — a rolling window of 4 FYs is always available (2 years back, current, 1 year forward). The FY label (e.g. "FY 2025-26") is displayed in the navbar. Changing the selected FY recalculates boundaries in-memory across all pages — no data is deleted. The FY start month is fixed at April (configurable in code via `FY_START_MONTH` constant in `App.jsx`).
 
 ### Transaction Direction
-Three fixed types: **Income**, **Expense**, **Saving**. Amounts are always stored as positive values. Net = Income – Expense – Saving. Direction logic lives exclusively in `calcUtils.js`.
+Three fixed types: **Income**, **Expense**, **Saving**.
+- **Income**: Amounts must always be positive. Negative income is treated as a data error.
+- **Expense** & **Saving**: Allow negative amounts. A negative Expense represents a refund/reversal (e.g., cashback). A negative Saving represents a withdrawal (e.g., emergency fund withdrawal).
+- Net = Income – Expense – Saving (negative amounts reduce the total).
+- Negative amounts display in amber colour in the transaction list for clarity.
+- Direction logic lives exclusively in `calcUtils.js`.
 
 ### Denormalised Database
 No foreign keys. Categories and subcategories are stored as plain strings in all three tables. Renames cascade via `UPDATE … WHERE old_value` — no join complexity. The `UNIQUE` constraint on `budgets` enables `INSERT OR REPLACE` upserts.
@@ -360,9 +367,23 @@ All endpoints prefixed with `/api`. All request and response bodies are JSON. No
 |--------|----------|-------------|
 | GET | `/api/dashboard/monthly?month=YYYY-MM` | Monthly summary KPIs + budget vs actual |
 | GET | `/api/dashboard/yearly?fy_start=YYYY-MM` | All 12 months data + YTD totals + yearly budget vs actual |
-| POST | `/api/reset` | Factory reset: deletes all transactions, budgets, taxonomy; re-seeds taxonomy |
+| POST | `/api/reset` | Factory reset: supports FY-specific or full database reset |
 
-**Monthly response:**
+**Reset request body:**
+```json
+// Reset only a specific FY (e.g., FY 2025-26)
+{ "fy_start": "2025-04" }
+
+// Reset entire database (all FYs + re-seed taxonomy)
+{ "full": true }
+
+// Empty body defaults to full reset (backward compatible)
+{}
+```
+
+**Reset response:**
+- FY reset: `{ "reset": true, "fyStart": "2025-04" }`
+- Full reset: `{ "reset": true }`
 ```json
 {
   "summary": { "income": 0, "expense": 0, "saving": 0, "net": 0 },
@@ -387,7 +408,54 @@ All endpoints prefixed with `/api`. All request and response bodies are JSON. No
 
 **Projection** (Actuals + Budget for future months) is computed on the frontend in `calcUtils.js`, not pre-calculated by the server.
 
-**Reset response:** `{ "reset": true }` on success; `{ "error": "..." }` with HTTP 500 on failure.
+**Reset response:**
+- FY reset: `{ "reset": true, "fyStart": "2025-04" }`
+- Full reset: `{ "reset": true }`
+- Error: `{ "error": "..." }` with HTTP 500
+
+### Import
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/import` | Import transactions and budgets from an Excel (.xlsx) file |
+
+**Request:** `multipart/form-data` with a `file` field containing an Excel file (max 5MB).
+
+**Excel file format:**
+| Column | Header | Description |
+|--------|---------|-------------|
+| A | Date | Transaction date (supports ISO, DD/MM/YYYY, Excel serial, MM/DD/YYYY, D-MMM-YY) |
+| B | Month | Budget month (supports MMM-YY, YYYY-MM, "Month YYYY", MM/YYYY) |
+| C | Remarks | Transaction note (optional) |
+| D | Transaction Type | Must be "Income", "Expense", or "Saving" |
+| E | Category | Transaction/budget category |
+| F | Sub-Category | Transaction/budget subcategory |
+| G | Actual Amount | Transaction amount (negative for Expense/Saving, positive for Income) |
+| H | Budget Amount | Budget amount (optional) |
+
+**Response:**
+```json
+{
+  "transactions": { "inserted": 3, "skipped": 0 },
+  "budgets": { "upserted": 2 },
+  "errors": [
+    { "row": 7, "reason": "Date could not be parsed: 'invalid'" }
+  ]
+}
+```
+
+- **Transactions:** Inserted records, skipped records (validation failures)
+- **Budgets:** Upserted records (INSERT OR REPLACE)
+- **Errors:** Array of `{ row, reason }` for rows that failed validation
+
+**Notes:**
+- Both transactions and budgets are imported from the same file in a single upload
+- Budget imports are idempotent (re-importing overwrites existing values)
+- Amount handling by type:
+  - **Income**: Must be positive in Excel; negative income rows are skipped (data error)
+  - **Expense/Saving**: Sign is flipped — Excel negative → DB positive (normal transaction), Excel positive → DB negative (reversal/withdrawal)
+  - Zero amounts are skipped (meaningless)
+- Invalid rows are skipped without aborting the entire import
 
 ### HTTP Status Codes
 
@@ -476,6 +544,7 @@ Manage the taxonomy of transaction types, categories, and subcategories.
 | `BudgetVsActualTable.jsx` | 67 | Reusable Budget vs Actual comparison table used in both monthly and yearly dashboard views |
 | `ConfirmDialog.jsx` | 17 | Modal confirmation dialog; cannot be dismissed by clicking outside — Confirm/Cancel buttons only |
 | `FilterBar.jsx` | 56 | Multi-select pill filter for Type/Category/Subcategory with cascading logic |
+| `ImportDialog.jsx` | 221 | Modal dialog for importing transactions and budgets from Excel files; displays upload progress and results summary |
 | `KPICard.jsx` | 11 | Single metric display card with optional click handler for drill-through |
 | `MonthPicker.jsx` | 25 | 12-button month grid modal for yearly drill-through navigation |
 | `ProjectionCard.jsx` | 43 | Yearly projection display: actuals + budgeted remaining = projected year-end; missing budget warning |
@@ -505,7 +574,7 @@ All `fetch()` calls live exclusively in hook files. Pages call hooks; components
 | `useDashboard(view, month, fyStart)` | `{ data, loading, error }` | Fetches monthly or yearly dashboard data |
 | `useBudget(fyStart)` | `{ data, loading, error, saveBulk }` | Fetches budgets and exposes bulk upsert action |
 | `useTransactions(month)` | `{ data, loading, error, reload, createTransaction, updateTransaction, deleteTransaction }` | Fetches transactions and exposes CRUD actions |
-| `useReset()` | `{ reset, resetting, resetError }` | Calls `POST /api/reset`; re-throws on error so the caller can guard UI state |
+| `useReset()` | `{ reset(options), resetting, resetError }` | Calls `POST /api/reset` with optional `{ fyStart }` or `{ fullReset: true }`; re-throws on error |
 | `useTaxonomy()` | (from TaxonomyContext) | Re-exported from context for consistent import path |
 | `useTaxonomyActions()` | `{ createEntry, updateEntry, deleteEntry, reorderEntries }` | Taxonomy write operations (called from Categories page) |
 
