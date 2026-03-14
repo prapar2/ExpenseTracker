@@ -245,7 +245,12 @@ finance-tracker/
 All screens scope to a single selected Financial Year at a time. The active FY is chosen from the Settings modal — a rolling window of 4 FYs is always available (2 years back, current, 1 year forward). The FY label (e.g. "FY 2025-26") is displayed in the navbar. Changing the selected FY recalculates boundaries in-memory across all pages — no data is deleted. The FY start month is fixed at April (configurable in code via `FY_START_MONTH` constant in `App.jsx`).
 
 ### Transaction Direction
-Three fixed types: **Income**, **Expense**, **Saving**. Amounts are always stored as positive values. Net = Income – Expense – Saving. Direction logic lives exclusively in `calcUtils.js`.
+Three fixed types: **Income**, **Expense**, **Saving**.
+- **Income**: Amounts must always be positive. Negative income is treated as a data error.
+- **Expense** & **Saving**: Allow negative amounts. A negative Expense represents a refund/reversal (e.g., cashback). A negative Saving represents a withdrawal (e.g., emergency fund withdrawal).
+- Net = Income – Expense – Saving (negative amounts reduce the total).
+- Negative amounts display in amber colour in the transaction list for clarity.
+- Direction logic lives exclusively in `calcUtils.js`.
 
 ### Denormalised Database
 No foreign keys. Categories and subcategories are stored as plain strings in all three tables. Renames cascade via `UPDATE … WHERE old_value` — no join complexity. The `UNIQUE` constraint on `budgets` enables `INSERT OR REPLACE` upserts.
@@ -446,7 +451,10 @@ All endpoints prefixed with `/api`. All request and response bodies are JSON. No
 **Notes:**
 - Both transactions and budgets are imported from the same file in a single upload
 - Budget imports are idempotent (re-importing overwrites existing values)
-- Amounts are stored as absolute values; direction is determined by Transaction Type
+- Amount handling by type:
+  - **Income**: Must be positive in Excel; negative income rows are skipped (data error)
+  - **Expense/Saving**: Sign is flipped — Excel negative → DB positive (normal transaction), Excel positive → DB negative (reversal/withdrawal)
+  - Zero amounts are skipped (meaningless)
 - Invalid rows are skipped without aborting the entire import
 
 ### HTTP Status Codes

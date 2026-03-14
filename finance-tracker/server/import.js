@@ -171,6 +171,30 @@ function normalizeType(value) {
 }
 
 /**
+ * Normalize amount for DB storage based on transaction type
+ * Returns normalised amount, or null if row should be skipped
+ * 
+ * INCOME: must be positive, negative = data error → skip
+ * EXPENSE/SAVING: flip sign unconditionally
+ *   - Excel negative (-500) → DB positive (+500) = normal transaction
+ *   - Excel positive (+300) → DB negative (-300) = reversal/cashback/withdrawal
+ * Zero → skip (meaningless)
+ */
+function normaliseAmount(rawAmount, type) {
+  if (rawAmount === null || rawAmount === undefined || rawAmount === 0) return null;
+  
+  if (type === 'Income') {
+    // Income must be positive; negative income = data error → skip
+    return rawAmount > 0 ? rawAmount : null;
+  }
+  
+  // Expense and Saving: flip the sign unconditionally
+  // Negative in Excel = normal expense → positive in DB
+  // Positive in Excel = reversal/cashback → negative in DB
+  return -rawAmount;
+}
+
+/**
  * Parse import file and return transactions and budgets arrays
  */
 function parseImportFile(buffer) {
@@ -273,14 +297,24 @@ function parseImportFile(buffer) {
       transaction.subcategory = String(subcategory).trim();
     }
 
-    // Validate and parse actual amount
+    // Validate and parse actual amount using normaliseAmount
     if (hasActual) {
-      const amount = parseFloat(actualAmount);
-      if (isNaN(amount) || !isFinite(amount)) {
+      const parsedAmount = parseFloat(actualAmount);
+      if (isNaN(parsedAmount) || !isFinite(parsedAmount)) {
         txSkipped = true;
         txSkipReason = txSkipReason || 'Actual Amount is not a valid number';
       } else {
-        transaction.amount = Math.abs(amount);
+        const normalised = normaliseAmount(parsedAmount, type);
+        if (normalised === null) {
+          txSkipped = true;
+          if (type === 'Income' && parsedAmount < 0) {
+            txSkipReason = txSkipReason || 'Income cannot be negative';
+          } else {
+            txSkipReason = txSkipReason || 'Actual Amount cannot be zero';
+          }
+        } else {
+          transaction.amount = normalised;
+        }
       }
     } else {
       txSkipped = true;
@@ -351,13 +385,23 @@ function parseImportFile(buffer) {
         budget.subcategory = String(subcategory).trim();
       }
 
-      // Validate and parse budget amount
-      const amount = parseFloat(budgetAmount);
-      if (isNaN(amount) || !isFinite(amount)) {
+      // Validate and parse budget amount using normaliseAmount
+      const parsedBudgetAmount = parseFloat(budgetAmount);
+      if (isNaN(parsedBudgetAmount) || !isFinite(parsedBudgetAmount)) {
         bgSkipped = true;
         bgSkipReason = bgSkipReason || 'Budget Amount is not a valid number';
       } else {
-        budget.amount = Math.abs(amount);
+        const normalised = normaliseAmount(parsedBudgetAmount, type);
+        if (normalised === null) {
+          bgSkipped = true;
+          if (type === 'Income' && parsedBudgetAmount < 0) {
+            bgSkipReason = bgSkipReason || 'Income budget cannot be negative';
+          } else {
+            bgSkipReason = bgSkipReason || 'Budget Amount cannot be zero';
+          }
+        } else {
+          budget.amount = Math.abs(normalised); // Budgets are always positive in DB
+        }
       }
     } else {
       // Skip silently - no budget amount means skip for budget import

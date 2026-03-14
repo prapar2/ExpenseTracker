@@ -43,7 +43,11 @@ export default function TransactionForm({ initial, onSave, onCancel, fyStart }) 
     if (!form.type) e.type = 'Required';
     if (!form.category) e.category = 'Required';
     if (!form.subcategory) e.subcategory = 'Required';
-    if (!form.amount || isNaN(form.amount) || Number(form.amount) <= 0) e.amount = 'Must be a positive number';
+    // Income must be positive; Expense/Saving can be negative (refunds/withdrawals)
+    const isIncome = form.type === 'Income';
+    if (!form.amount || isNaN(form.amount) || (isIncome && Number(form.amount) <= 0) || (!isIncome && Number(form.amount) === 0)) {
+      e.amount = isIncome ? 'Must be a positive number' : 'Cannot be zero';
+    }
     return e;
   }
 
@@ -132,12 +136,11 @@ export default function TransactionForm({ initial, onSave, onCancel, fyStart }) 
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">₹</span>
             <input 
               type="number" 
-              min="0.01" 
               step="0.01" 
               value={form.amount}
               onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
               className="input pl-7" 
-              placeholder="0.00" 
+              placeholder={form.type === 'Income' ? "0.00" : "-0.00 for refunds/withdrawals"}
             />
           </div>
         )}

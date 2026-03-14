@@ -97,7 +97,7 @@ export default function TransactionList({ transactions, onEdit, onDelete }) {
                 </td>
                 <td className="px-4 py-3 text-gray-700">{tx.category}</td>
                 <td className="px-4 py-3 text-gray-500">{tx.subcategory}</td>
-                <td className="px-4 py-3 font-semibold text-gray-900">{formatINR(tx.amount)}</td>
+                <td className={`px-4 py-3 font-semibold ${tx.amount < 0 ? 'text-amber-600' : 'text-gray-900'}`}>{formatINR(tx.amount)}</td>
                 <td className="px-4 py-3 text-gray-500 max-w-xs truncate" title={tx.note}>
                   {truncateNote(tx.note) || <span className="text-gray-300">—</span>}
                 </td>
