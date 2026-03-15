@@ -25,14 +25,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get addon version
+        id: version
+        run: |
+          VERSION=$(grep 'version:' finance-tracker-addon/config.yaml | head -1 | awk '{print $2}' | tr -d '"')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Build and push addon image
         uses: docker/build-push-action@v5
         with:
-          context: .                                    # repo root — fixes the COPY path issue
-          file: finance-tracker-addon/Dockerfile        # explicit Dockerfile path
+          context: .
+          file: finance-tracker-addon/Dockerfile
           push: true
           tags: |
             ghcr.io/prapar2/finance-tracker-addon/amd64:latest
-            ghcr.io/prapar2/finance-tracker-addon/amd64:${{ github.sha }}
+            ghcr.io/prapar2/finance-tracker-addon/amd64:${{ steps.version.outputs.version }}
           build-args: |
             BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest
