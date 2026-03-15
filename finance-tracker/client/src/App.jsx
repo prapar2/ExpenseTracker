@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import { TaxonomyProvider } from './context/TaxonomyContext';
 import Dashboard from './pages/Dashboard';
@@ -12,13 +12,15 @@ import { useReset } from './hooks/useReset';
 
 const FY_START_MONTH = 4; // April — fixed
 
-// Detect basename from window.location for HA ingress support
-const basename = useMemo(() => {
+// Plain function — called once, no hooks needed
+function getBasename() {
   const path = window.location.pathname;
-  // HA Ingress path format: /api/hassio_ingress/TOKEN/rest-of-path
   const match = path.match(/^(\/api\/hassio_ingress\/[^/]+)/);
   return match ? match[1] : '/';
-}, []);
+}
+
+// Call it once outside the component
+const basename = getBasename();
 
 export default function App() {
   const currentFYStart = getFYStart(FY_START_MONTH);
