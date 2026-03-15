@@ -1,4 +1,5 @@
 import { createContext, useContext, useReducer } from 'react';
+import { API_BASE } from '../utils/apiUtils';
 
 const BudgetContext = createContext(null);
 
@@ -17,7 +18,7 @@ export function BudgetProvider({ children }) {
   async function load(fyStart) {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
-      const res = await fetch(`/api/budgets?fy_start=${fyStart}`);
+      const res = await fetch(`${API_BASE}/budgets?fy_start=${fyStart}`);
       dispatch({ type: 'SET', payload: await res.json() });
     } catch (e) {
       dispatch({ type: 'SET_ERROR', payload: e.message });

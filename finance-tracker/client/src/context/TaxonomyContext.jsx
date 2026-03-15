@@ -1,4 +1,5 @@
 import { createContext, useContext, useReducer, useEffect } from 'react';
+import { API_BASE } from '../utils/apiUtils';
 
 const TaxonomyContext = createContext(null);
 
@@ -17,7 +18,7 @@ export function TaxonomyProvider({ children }) {
   async function load() {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
-      const res = await fetch('/api/taxonomy');
+      const res = await fetch(`${API_BASE}/taxonomy`);
       dispatch({ type: 'SET', payload: await res.json() });
     } catch (e) {
       dispatch({ type: 'SET_ERROR', payload: e.message });

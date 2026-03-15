@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { API_BASE } from '../utils/apiUtils';
 
 export function useDashboard(view, month, fyStart) {
   const [data, setData] = useState(null);
@@ -11,8 +12,8 @@ export function useDashboard(view, month, fyStart) {
     setLoading(true);
     setError(null);
     const url = view === 'monthly'
-      ? `/api/dashboard/monthly?month=${month}`
-      : `/api/dashboard/yearly?fy_start=${fyStart}`;
+      ? `${API_BASE}/dashboard/monthly?month=${month}`
+      : `${API_BASE}/dashboard/yearly?fy_start=${fyStart}`;
     fetch(url)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(d => { setData(d); setLoading(false); })

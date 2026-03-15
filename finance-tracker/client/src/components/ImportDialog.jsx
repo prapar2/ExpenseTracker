@@ -1,6 +1,5 @@
 import { useState, useRef } from 'react';
-
-const API_URL = import.meta.env.VITE_API_URL || '';
+import { API_BASE } from '../utils/apiUtils';
 
 export default function ImportDialog({ onClose }) {
   const [status, setStatus] = useState('idle'); // idle, uploading, results
@@ -25,7 +24,7 @@ export default function ImportDialog({ onClose }) {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch(`${API_URL}/api/import`, {
+      const response = await fetch(`${API_BASE}/import`, {
         method: 'POST',
         body: formData,
       });

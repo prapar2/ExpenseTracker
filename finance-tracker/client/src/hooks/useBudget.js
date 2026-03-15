@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { API_BASE } from '../utils/apiUtils';
 
 export function useBudget(fyStart) {
   const [data, setData] = useState([]);
@@ -10,7 +11,7 @@ export function useBudget(fyStart) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/budgets?fy_start=${fyStart}`);
+      const res = await fetch(`${API_BASE}/budgets?fy_start=${fyStart}`);
       if (!res.ok) throw new Error((await res.json()).error);
       setData(await res.json());
     } catch (e) {
@@ -23,7 +24,7 @@ export function useBudget(fyStart) {
   useEffect(() => { load(); }, [load]);
 
   async function saveBulk(rows) {
-    const res = await fetch('/api/budgets/bulk', {
+    const res = await fetch(`${API_BASE}/budgets/bulk`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ fy_start: fyStart, rows }),

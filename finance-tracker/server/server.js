@@ -8,54 +8,47 @@ const db = require('./db');
 
 const app = express();
 
-// Strip HA Ingress path prefix so all API routes work correctly under Ingress
-app.use((req, _res, next) => {
-  const match = req.url.match(/^\/api\/hassio_ingress\/[^/]+(\/.*)?$/);
-  if (match) {
-    req.url = match[1] || '/';
-  }
-  next();
-});
+
 
 app.use(express.json());
 
 // Taxonomy routes
-app.get('/api/taxonomy', (req, res) => {
+app.get('/app-api/taxonomy', (req, res) => {
   res.json(db.getTaxonomy());
 });
 
-app.post('/api/taxonomy', (req, res) => {
+app.post('/app-api/taxonomy', (req, res) => {
   const { type, category, subcategory } = req.body;
   if (!type || !category || !subcategory) return res.status(400).json({ error: 'type, category, subcategory required' });
   const result = db.createTaxonomy({ type, category, subcategory });
   res.status(201).json(result);
 });
 
-app.put('/api/taxonomy/:id', (req, res) => {
+app.put('/app-api/taxonomy/:id', (req, res) => {
   const result = db.updateTaxonomy(Number(req.params.id), req.body);
   if (!result) return res.status(404).json({ error: 'Taxonomy entry not found' });
   res.json(result);
 });
 
-app.delete('/api/taxonomy/:id', (req, res) => {
+app.delete('/app-api/taxonomy/:id', (req, res) => {
   const result = db.deleteTaxonomy(Number(req.params.id));
   if (result.status === 404) return res.status(404).json({ error: result.error });
   if (result.status === 400) return res.status(400).json({ error: result.error });
   res.json(result);
 });
 
-app.patch('/api/taxonomy/reorder', (req, res) => {
+app.patch('/app-api/taxonomy/reorder', (req, res) => {
   if (!Array.isArray(req.body)) return res.status(400).json({ error: 'Array of {id, sort_order} required' });
   res.json(db.reorderTaxonomy(req.body));
 });
 
 // Transactions routes
-app.get('/api/transactions', (req, res) => {
+app.get('/app-api/transactions', (req, res) => {
   const { month } = req.query;
   res.json(db.getTransactions(month));
 });
 
-app.post('/api/transactions', (req, res) => {
+app.post('/app-api/transactions', (req, res) => {
   const { date, type, category, subcategory, amount } = req.body;
   if (!date || !type || !category || !subcategory || amount == null) {
     return res.status(400).json({ error: 'date, type, category, subcategory, amount required' });
@@ -65,45 +58,45 @@ app.post('/api/transactions', (req, res) => {
   res.status(201).json(result);
 });
 
-app.put('/api/transactions/:id', (req, res) => {
+app.put('/app-api/transactions/:id', (req, res) => {
   const result = db.updateTransaction(Number(req.params.id), req.body);
   if (!result) return res.status(404).json({ error: 'Transaction not found' });
   res.json(result);
 });
 
-app.delete('/api/transactions/:id', (req, res) => {
+app.delete('/app-api/transactions/:id', (req, res) => {
   const result = db.deleteTransaction(Number(req.params.id));
   if (!result) return res.status(404).json({ error: 'Transaction not found' });
   res.json(result);
 });
 
 // Budgets routes
-app.get('/api/budgets', (req, res) => {
+app.get('/app-api/budgets', (req, res) => {
   const { fy_start } = req.query;
   if (!fy_start) return res.status(400).json({ error: 'fy_start required' });
   res.json(db.getBudgets(fy_start));
 });
 
-app.post('/api/budgets/bulk', (req, res) => {
+app.post('/app-api/budgets/bulk', (req, res) => {
   const { fy_start, rows } = req.body;
   if (!fy_start || !Array.isArray(rows)) return res.status(400).json({ error: 'fy_start and rows[] required' });
   res.json(db.upsertBudgets(fy_start, rows));
 });
 
 // Dashboard routes
-app.get('/api/dashboard/monthly', (req, res) => {
+app.get('/app-api/dashboard/monthly', (req, res) => {
   const { month } = req.query;
   if (!month) return res.status(400).json({ error: 'month required' });
   res.json(db.getDashboardMonthly(month));
 });
 
-app.get('/api/dashboard/yearly', (req, res) => {
+app.get('/app-api/dashboard/yearly', (req, res) => {
   const { fy_start } = req.query;
   if (!fy_start) return res.status(400).json({ error: 'fy_start required' });
   res.json(db.getDashboardYearly(fy_start));
 });
 
-app.post('/api/reset', (req, res) => {
+app.post('/app-api/reset', (req, res) => {
   try {
     const { fy_start, full } = req.body;
     
@@ -119,7 +112,7 @@ app.post('/api/reset', (req, res) => {
 });
 
 // Import route
-app.post('/api/import', upload.single('file'), (req, res) => {
+app.post('/app-api/import', upload.single('file'), (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
   const { transactions, budgets, errors } = parseImportFile(req.file.buffer);
 

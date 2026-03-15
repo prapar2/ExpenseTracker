@@ -1,6 +1,5 @@
 import { useState } from 'react';
-
-const API_URL = import.meta.env.VITE_API_URL || '';
+import { API_BASE } from '../utils/apiUtils';
 
 export function useReset() {
   const [resetting, setResetting] = useState(false);
@@ -19,7 +18,7 @@ export function useReset() {
         body.fy_start = fyStart;
       }
       
-      const res = await fetch(`${API_URL}/api/reset`, { 
+      const res = await fetch(`${API_BASE}/reset`, { 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: Object.keys(body).length > 0 ? JSON.stringify(body) : undefined

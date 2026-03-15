@@ -1,4 +1,5 @@
 import { createContext, useContext, useReducer } from 'react';
+import { API_BASE } from '../utils/apiUtils';
 
 const TransactionContext = createContext(null);
 
@@ -17,7 +18,7 @@ export function TransactionProvider({ children }) {
   async function load(month) {
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
-      const url = month ? `/api/transactions?month=${month}` : '/api/transactions';
+      const url = month ? `${API_BASE}/transactions?month=${month}` : `${API_BASE}/transactions`;
       const res = await fetch(url);
       dispatch({ type: 'SET', payload: await res.json() });
     } catch (e) {
