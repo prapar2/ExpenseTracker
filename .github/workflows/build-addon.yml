@@ -1,0 +1,38 @@
+name: Build and Push HA Addon
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'finance-tracker/**'
+      - 'finance-tracker-addon/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write        # needed to push to GHCR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push addon image
+        uses: docker/build-push-action@v5
+        with:
+          context: .                                    # repo root — fixes the COPY path issue
+          file: finance-tracker-addon/Dockerfile        # explicit Dockerfile path
+          push: true
+          tags: |
+            ghcr.io/prapar2/finance-tracker-addon/amd64:latest
+            ghcr.io/prapar2/finance-tracker-addon/amd64:${{ github.sha }}
+          build-args: |
+            BUILD_FROM=ghcr.io/home-assistant/amd64-base:latest

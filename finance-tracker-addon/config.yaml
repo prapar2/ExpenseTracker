@@ -1,5 +1,5 @@
 name: "Personal Finance Tracker"
-version: "1.0.2"
+version: "1.0.3"
 slug: "finance_tracker"
 description: "Track personal income, expenses and savings across a financial year"
 arch:
@@ -14,3 +14,4 @@ panel_icon: "mdi:currency-inr"
 panel_title: "Finance Tracker"
 startup: application
 boot: auto
+image: "ghcr.io/prapar2/finance-tracker-addon/{arch}"
