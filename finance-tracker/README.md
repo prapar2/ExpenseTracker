@@ -8,7 +8,8 @@ A single-user personal finance tracking web application for recording transactio
 
 1. [Quick Start](#quick-start)
 2. [Docker](#docker)
-3. [Technology Stack](#technology-stack)
+3. [Home Assistant OS Add-on](#home-assistant-os-add-on)
+4. [Technology Stack](#technology-stack)
 4. [Project Structure](#project-structure)
 5. [Architecture & Design Decisions](#architecture--design-decisions)
 6. [Database Schema](#database-schema)
@@ -122,6 +123,43 @@ Set in `docker-compose.yml` — do **not** rely on `.env` inside the container:
 | Host | Container | Service |
 |------|-----------|---------|
 | `3001` | `3001` | Express (API + static React app) |
+
+---
+
+## Home Assistant OS Add-on
+
+This application is also available as a Home Assistant OS add-on, allowing you to run it directly within your Home Assistant instance.
+
+### Installation
+
+1. Open Home Assistant → **Settings** → **Add-ons** → **Add-on Store**
+2. Click the three-dot menu (⋮) top-right → **Repositories**
+3. Paste: `https://github.com/prapar2/ExpenseTracker`
+4. Click **Add** → **Close**
+5. Find "Personal Finance Tracker" in the Add-on Store and click **Install**
+
+### First Run
+
+On first installation, the add-on will:
+- Automatically create the SQLite database at `/data/finance.db`
+- Seed the default taxonomy (Income, Expense, Saving categories)
+- Start the Express server on port 3001
+
+### Configuration
+
+The add-on comes pre-configured with sensible defaults:
+- **Database path:** `/data/finance.db` (persists across updates)
+- **Server port:** `3001`
+- **Ingress:** Enabled — access via "Open Web UI" button or sidebar
+
+### Updating
+
+To update the add-on:
+1. Push code changes to GitHub
+2. Bump the version in `finance-tracker-addon/config.yaml`
+3. In Home Assistant, click **Update** on the add-on card
+
+Your data in `/data/finance.db` is preserved during updates.
 
 ---
 
