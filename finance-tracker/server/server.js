@@ -7,6 +7,16 @@ const { parseImportFile } = require('./import');
 const db = require('./db');
 
 const app = express();
+
+// Strip HA Ingress path prefix so all API routes work correctly under Ingress
+app.use((req, _res, next) => {
+  const match = req.url.match(/^\/api\/hassio_ingress\/[^/]+(\/.*)?$/);
+  if (match) {
+    req.url = match[1] || '/';
+  }
+  next();
+});
+
 app.use(express.json());
 
 // Taxonomy routes
