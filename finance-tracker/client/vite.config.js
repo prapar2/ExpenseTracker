@@ -5,6 +5,7 @@ import { resolve } from 'path';
 const clientDir = resolve(import.meta.dirname);
 
 export default defineConfig({
+  base: './',
   root: clientDir,
   plugins: [react()],
   css: {

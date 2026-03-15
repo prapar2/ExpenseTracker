@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom';
 import { TaxonomyProvider } from './context/TaxonomyContext';
 import Dashboard from './pages/Dashboard';
@@ -11,6 +11,14 @@ import { getFYLabel, getFYStart, getFYList } from './utils/dateUtils';
 import { useReset } from './hooks/useReset';
 
 const FY_START_MONTH = 4; // April — fixed
+
+// Detect basename from window.location for HA ingress support
+const basename = useMemo(() => {
+  const path = window.location.pathname;
+  // HA Ingress path format: /api/hassio_ingress/TOKEN/rest-of-path
+  const match = path.match(/^(\/api\/hassio_ingress\/[^/]+)/);
+  return match ? match[1] : '/';
+}, []);
 
 export default function App() {
   const currentFYStart = getFYStart(FY_START_MONTH);
@@ -44,7 +52,7 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <TaxonomyProvider>
         <div className="min-h-screen bg-gray-50">
           {/* Modern Navigation */}
