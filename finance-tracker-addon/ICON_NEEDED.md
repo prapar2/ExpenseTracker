@@ -1,0 +1,1 @@
+Place a 512x512 PNG named icon.png in this folder before publishing to HA.
