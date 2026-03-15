@@ -1,5 +1,5 @@
 name: "Personal Finance Tracker"
-version: "1.0.4"
+version: "1.0.5"
 slug: "finance_tracker"
 description: "Track personal income, expenses and savings across a financial year"
 arch:

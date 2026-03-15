@@ -5,14 +5,14 @@ RUN apk add --no-cache nodejs npm sqlite python3 make g++
 
 WORKDIR /app
 
-# These paths work because GitHub Actions builds from repo root
 COPY finance-tracker/package.json ./
 COPY finance-tracker/client ./client
 COPY finance-tracker/server ./server
 
 RUN npm install && npm run build
 
-COPY finance-tracker-addon/run.sh /run.sh
-RUN chmod a+x /run.sh
+# Register as s6 service — copy run.sh into s6 services directory
+COPY finance-tracker-addon/run.sh /etc/services.d/finance_tracker/run
+RUN chmod a+x /etc/services.d/finance_tracker/run
 
-CMD ["/run.sh"]
+# No CMD — HA base image handles startup via s6
