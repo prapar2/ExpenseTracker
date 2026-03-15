@@ -1,5 +1,5 @@
 name: "Personal Finance Tracker"
-version: "1.0.6"
+version: "1.0.7"
 slug: "finance_tracker"
 description: "Track personal income, expenses and savings across a financial year"
 arch:
@@ -7,6 +7,11 @@ arch:
 url: "https://github.com/prapar2/ExpenseTracker"
 ingress: true
 ingress_port: 3001
+ports:
+  3001/tcp: 3001
+ports_description:
+  3001/tcp: "Web UI"
+ingress_entry: /
 map:
   - type: data
     read_only: false
