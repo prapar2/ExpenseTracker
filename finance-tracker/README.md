@@ -130,13 +130,37 @@ Set in `docker-compose.yml` — do **not** rely on `.env` inside the container:
 
 This application is also available as a Home Assistant OS add-on, allowing you to run it directly within your Home Assistant instance.
 
-### Installation
+### NEXT STEPS TO DEPLOY IN HOME ASSISTANT:
 
-1. Open Home Assistant → **Settings** → **Add-ons** → **Add-on Store**
-2. Click the three-dot menu (⋮) top-right → **Repositories**
-3. Paste: `https://github.com/prapar2/ExpenseTracker`
-4. Click **Add** → **Close**
-5. Find "Personal Finance Tracker" in the Add-on Store and click **Install**
+1. Review the created files, then commit and push to GitHub:
+      git add repository.yaml finance-tracker-addon/
+      git commit -m "Add Home Assistant add-on wrapper v1.0.0"
+      git push
+
+2. Open Home Assistant → Settings → Add-ons → Add-on Store
+
+3. Click the three-dot menu (⋮) top-right → Repositories
+
+4. Paste: https://github.com/prapar2/ExpenseTracker
+   Click Add → Close
+
+5. Scroll down in the Add-on Store — "Personal Finance Tracker" will appear
+   under a section named after your repo.
+
+6. Click it → Install (first build takes 3–5 minutes on a NUC)
+
+7. Once installed, go to the add-on page:
+   - Enable "Start on boot"
+   - Enable "Watchdog"
+   - Optionally enable "Show in sidebar"
+   - Click Start
+
+8. Watch the Log tab — you should see:
+      First run detected — initialising database...
+      Starting Personal Finance Tracker on port 3001...
+
+9. Click "Open Web UI" to access your app.
+
 
 ### First Run
 
@@ -151,15 +175,6 @@ The add-on comes pre-configured with sensible defaults:
 - **Database path:** `/data/finance.db` (persists across updates)
 - **Server port:** `3001`
 - **Ingress:** Enabled — access via "Open Web UI" button or sidebar
-
-### Updating
-
-To update the add-on:
-1. Push code changes to GitHub
-2. Bump the version in `finance-tracker-addon/config.yaml`
-3. In Home Assistant, click **Update** on the add-on card
-
-Your data in `/data/finance.db` is preserved during updates.
 
 ---
 
