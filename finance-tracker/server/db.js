@@ -271,6 +271,46 @@ function bulkUpsertBudgets(rows) {
   return { upserted: upsertMany(rows) };
 }
 
+// Export functions
+function getTransactionsByFy(fyStart) {
+  // Get all transactions for a fiscal year (April to March)
+  // Extract year and month from fyStart
+  const [fyYear, fyMonth] = fyStart.split('-').map(Number);
+  
+  // Build date range for the fiscal year
+  const startDate = `${fyYear}-${String(fyMonth).padStart(2, '0')}-01`;
+  const endYear = fyMonth <= 12 ? fyYear + 1 : fyYear;
+  const endDate = `${endYear}-${String(((fyMonth - 1 + 12) % 12) + 1).padStart(2, '0')}-01`;
+  
+  return db.prepare(`
+    SELECT 
+      id, date, type, category, subcategory, amount, note,
+      substr(date, 1, 7) as month
+    FROM transactions 
+    WHERE date >= ? AND date < ?
+    ORDER BY date DESC
+  `).all(startDate, endDate);
+}
+
+function getTransactionsByMonth(month) {
+  return db.prepare(`
+    SELECT 
+      id, date, type, category, subcategory, amount, note,
+      substr(date, 1, 7) as month
+    FROM transactions 
+    WHERE date LIKE ?
+    ORDER BY date DESC
+  `).all(month + '%');
+}
+
+function getBudgetsByFy(fyStart) {
+  return db.prepare('SELECT * FROM budgets WHERE fy_start=? ORDER BY month ASC').all(fyStart);
+}
+
+function getBudgets(month) {
+  return db.prepare('SELECT * FROM budgets WHERE month=?').all(month);
+}
+
 module.exports = {
   getTaxonomy, createTaxonomy, updateTaxonomy, deleteTaxonomy, reorderTaxonomy,
   getTransactions, createTransaction, updateTransaction, deleteTransaction,
@@ -278,4 +318,6 @@ module.exports = {
   getDashboardMonthly, getDashboardYearly,
   resetDatabase, resetFy,
   bulkInsertTransactions, bulkUpsertBudgets,
+  getTransactionsByFy, getTransactionsByMonth,
+  getBudgetsByFy, getBudgets,
 };

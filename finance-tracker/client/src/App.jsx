@@ -7,6 +7,7 @@ import Budget from './pages/Budget';
 import Categories from './pages/Categories';
 import ConfirmDialog from './components/ConfirmDialog';
 import ImportDialog from './components/ImportDialog';
+import ExportDialog from './components/ExportDialog';
 import { getFYLabel, getFYStart, getFYList } from './utils/dateUtils';
 import { useReset } from './hooks/useReset';
 
@@ -28,6 +29,7 @@ export default function App() {
   const [fyStart, setFyStart] = useState(currentFYStart);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetType, setResetType] = useState('fy'); // 'fy' or 'full'
   const { reset, resetting, resetError } = useReset();
@@ -120,6 +122,17 @@ export default function App() {
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                  </button>
+                  
+                  {/* Export Button */}
+                  <button 
+                    onClick={() => setShowExport(true)} 
+                    className="p-2 rounded-lg text-white/80 hover:text-white hover:bg-white/10 transition-colors duration-150"
+                    title="Export"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
                   </button>
                   
@@ -287,6 +300,11 @@ export default function App() {
           {/* Import Dialog */}
           {showImport && (
             <ImportDialog onClose={() => setShowImport(false)} />
+          )}
+
+          {/* Export Dialog */}
+          {showExport && (
+            <ExportDialog onClose={() => setShowExport(false)} currentFyStart={fyStart} />
           )}
         </div>
       </TaxonomyProvider>

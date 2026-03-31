@@ -4,6 +4,7 @@ const path = require('path');
 const multer = require('multer');
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const { parseImportFile } = require('./import');
+const { generateExportBuffer } = require('./export');
 const db = require('./db');
 
 const app = express();
@@ -127,6 +128,30 @@ app.post('/app-api/import', upload.single('file'), (req, res) => {
     budgets:      { upserted: bgResult.upserted },
     errors        // array of { row, reason } objects
   });
+});
+
+// Export route
+app.get('/app-api/export', (req, res) => {
+  const { fy_start, month } = req.query;
+  
+  if (!fy_start) {
+    return res.status(400).json({ error: 'fy_start parameter is required' });
+  }
+  
+  try {
+    const buffer = generateExportBuffer(fy_start, month || null);
+    
+    const filename = month 
+      ? `finance-export-${month}.xlsx` 
+      : `finance-export-${fy_start}.xlsx`;
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+    
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Serve client in production
