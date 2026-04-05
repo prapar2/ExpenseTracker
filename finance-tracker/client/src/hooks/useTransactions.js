@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { API_BASE } from '../utils/apiUtils';
 
-export function useTransactions(month) {
+export function useTransactions(month, fyStart) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -10,7 +10,17 @@ export function useTransactions(month) {
     setLoading(true);
     setError(null);
     try {
-      const url = month ? `${API_BASE}/transactions?month=${month}` : `${API_BASE}/transactions`;
+      let url;
+      if (month) {
+        // Fetch transactions for a specific month
+        url = `${API_BASE}/transactions?month=${month}`;
+      } else if (fyStart) {
+        // Fetch all transactions for the FY
+        url = `${API_BASE}/transactions?fy_start=${fyStart}`;
+      } else {
+        // Fallback: fetch all transactions
+        url = `${API_BASE}/transactions`;
+      }
       const res = await fetch(url);
       if (!res.ok) throw new Error((await res.json()).error);
       setData(await res.json());
@@ -19,7 +29,7 @@ export function useTransactions(month) {
     } finally {
       setLoading(false);
     }
-  }, [month]);
+  }, [month, fyStart]);
 
   useEffect(() => { load(); }, [load]);
 

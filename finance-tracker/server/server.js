@@ -45,8 +45,17 @@ app.patch('/app-api/taxonomy/reorder', (req, res) => {
 
 // Transactions routes
 app.get('/app-api/transactions', (req, res) => {
-  const { month } = req.query;
-  res.json(db.getTransactions(month));
+  const { month, fy_start } = req.query;
+  if (fy_start) {
+    // Fetch all transactions for a financial year
+    res.json(db.getTransactionsByFy(fy_start));
+  } else if (month) {
+    // Fetch transactions for a specific month
+    res.json(db.getTransactions(month));
+  } else {
+    // Fetch all transactions
+    res.json(db.getTransactions());
+  }
 });
 
 app.post('/app-api/transactions', (req, res) => {

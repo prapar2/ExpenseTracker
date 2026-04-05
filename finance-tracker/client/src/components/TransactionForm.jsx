@@ -20,6 +20,19 @@ export default function TransactionForm({ initial, onSave, onCancel, fyStart }) 
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
 
+  // Update form when initial prop changes (e.g., when clicking edit)
+  useEffect(() => {
+    setForm({
+      date: initial?.date || today,
+      type: initial?.type || 'Expense',
+      category: initial?.category || '',
+      subcategory: initial?.subcategory || '',
+      amount: initial?.amount || '',
+      note: initial?.note || '',
+    });
+    setErrors({});
+  }, [initial?.id, today]);
+
   const categories = getCategories(form.type);
   const subcategories = form.category ? getSubcategories(form.type, form.category) : [];
 

@@ -5,12 +5,13 @@ import TransactionForm from '../components/TransactionForm';
 import TransactionList from '../components/TransactionList';
 import FilterBar from '../components/FilterBar';
 import { formatINR } from '../utils/formatUtils';
-import { currentMonth, getFYMonths, getMonthLabel } from '../utils/dateUtils';
+import { currentMonth, getFYMonths, getMonthLabel, getFYLabel } from '../utils/dateUtils';
 
 export default function Transactions({ fyStart }) {
   const location = useLocation();
   const fyMonths = getFYMonths(fyStart);
   const initState = location.state || {};
+  const [viewMode, setViewMode] = useState(initState.month ? 'month' : 'all');
   const [month, setMonth] = useState(initState.month || currentMonth());
   const [filters, setFilters] = useState({
     types: initState.types || [],
@@ -19,7 +20,9 @@ export default function Transactions({ fyStart }) {
   });
   const [editingTx, setEditingTx] = useState(null);
 
-  const { data, loading, error, reload, createTransaction, updateTransaction, deleteTransaction } = useTransactions(month);
+  // Pass month to hook if viewing monthly, pass null for entire FY
+  const queryMonth = viewMode === 'month' ? month : null;
+  const { data, loading, error, reload, createTransaction, updateTransaction, deleteTransaction } = useTransactions(queryMonth, fyStart);
 
   // Apply filters
   const filtered = useMemo(() => data.filter(tx => {
@@ -81,24 +84,59 @@ export default function Transactions({ fyStart }) {
         )}
       </div>
 
-      {/* Month selector & Filters */}
+      {/* View Mode & Filters */}
       <div className="card p-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-4">
-          {/* Month Selector */}
+          {/* View Mode Selector */}
           <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-700">Month:</label>
-            <select 
-              value={month} 
-              onChange={e => setMonth(e.target.value)} 
-              className="select w-auto"
-            >
-              {fyMonths.map(m => (
-                <option key={m} value={m}>{getMonthLabel(m)}</option>
-              ))}
-            </select>
-            <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
-              {getMonthLabel(month)}
-            </span>
+            <label className="text-sm font-medium text-gray-700">View:</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setViewMode('month')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                  viewMode === 'month'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setViewMode('all')}
+                className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
+                  viewMode === 'all'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                Entire FY
+              </button>
+            </div>
+            
+            {/* Conditional Month Selector */}
+            {viewMode === 'month' && (
+              <>
+                <label className="text-sm font-medium text-gray-700 ml-2">Month:</label>
+                <select 
+                  value={month} 
+                  onChange={e => setMonth(e.target.value)} 
+                  className="select w-auto"
+                >
+                  {fyMonths.map(m => (
+                    <option key={m} value={m}>{getMonthLabel(m)}</option>
+                  ))}
+                </select>
+                <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                  {getMonthLabel(month)}
+                </span>
+              </>
+            )}
+            
+            {viewMode === 'all' && (
+              <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                {getFYLabel(fyStart)}
+              </span>
+            )}
           </div>
           
           {/* Transaction Count */}
