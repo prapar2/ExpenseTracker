@@ -1,5 +1,5 @@
 name: "Personal Finance Tracker"
-version: "1.0.16"
+version: "1.0.17"
 slug: "finance_tracker"
 description: "Track personal income, expenses and savings across a financial year"
 arch:
@@ -24,10 +24,12 @@ init: false
 options:
   GOOGLE_OAUTH_CLIENT_ID: ""
   GOOGLE_OAUTH_CLIENT_SECRET: ""
+  GOOGLE_OAUTH_REDIRECT_URI: ""
   BACKUP_ENABLED: false
   BACKUP_SYSTEM_NAME: "home-assistant"
 schema:
   GOOGLE_OAUTH_CLIENT_ID: str
   GOOGLE_OAUTH_CLIENT_SECRET: str
+  GOOGLE_OAUTH_REDIRECT_URI: str
   BACKUP_ENABLED: bool
   BACKUP_SYSTEM_NAME: str

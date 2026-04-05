@@ -9,8 +9,15 @@ export BACKUP_SCHEDULE="0 0 * * 0"
 # Read user-configured options from HA add-on config
 export GOOGLE_OAUTH_CLIENT_ID="$(bashio::config 'GOOGLE_OAUTH_CLIENT_ID')"
 export GOOGLE_OAUTH_CLIENT_SECRET="$(bashio::config 'GOOGLE_OAUTH_CLIENT_SECRET')"
-export BACKUP_ENABLED="$(bashio::config 'BACKUP_ENABLED')"
+export GOOGLE_OAUTH_REDIRECT_URI="$(bashio::config 'GOOGLE_OAUTH_REDIRECT_URI')"
 export BACKUP_SYSTEM_NAME="$(bashio::config 'BACKUP_SYSTEM_NAME')"
+
+# BACKUP_ENABLED: bashio returns boolean true/false, server.js expects string "true"
+if bashio::config.true 'BACKUP_ENABLED'; then
+  export BACKUP_ENABLED="true"
+else
+  export BACKUP_ENABLED="false"
+fi
 
 # ── First-run database initialisation ─────────────────────────────────────
 if [ ! -f "${DB_PATH}" ]; then
