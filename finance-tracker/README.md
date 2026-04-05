@@ -177,6 +177,40 @@ The add-on comes pre-configured with sensible defaults:
 - **Server port:** `3001`
 - **Ingress:** Enabled — access via "Open Web UI" button or sidebar
 
+### Enabling Google Drive Backups (Optional)
+
+To enable automatic weekly backups to Google Drive:
+
+1. **Create Google OAuth credentials** (one-time setup):
+   - Go to [Google Cloud Console](https://console.cloud.google.com/apis/credentials)
+   - Create a new OAuth 2.0 Client ID (Web application)
+   - Set authorized redirect URI:
+     ```
+     https://your-ha-url/api/hassio_ingress/finance-tracker/app/app-api/auth/google/callback
+     ```
+     Replace `your-ha-url` with your actual Home Assistant URL (e.g., `https://home.example.com`)
+   - Copy the **Client ID** and **Client Secret**
+
+2. **Configure the add-on**:
+   - Go to the add-on settings → Environment Variables
+   - Add these variables (replace with your actual values):
+     ```yaml
+     GOOGLE_OAUTH_CLIENT_ID: "your-client-id.apps.googleusercontent.com"
+     GOOGLE_OAUTH_CLIENT_SECRET: "GOCSPX-your-secret"
+     BACKUP_ENABLED: "true"
+     BACKUP_SYSTEM_NAME: "home-assistant"
+     ```
+   - Save and restart the add-on
+
+3. **Complete OAuth setup**:
+   - Open the app → Settings → Backup & Restore
+   - Click "Open Google Authorization"
+   - Authorize with your Google account
+   - Refresh the app
+   - Backups will now run automatically every Sunday at midnight
+
+**Note:** See `.env.ha.example` in the repository for all available environment variables.
+
 ---
 
 ## Technology Stack

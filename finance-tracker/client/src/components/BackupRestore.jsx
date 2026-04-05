@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useBackup } from '../hooks/useBackup';
+import { API_BASE } from '../utils/apiUtils';
 
 export default function BackupRestore() {
   const { loading, error, lastBackup, getStatus, createBackup, restoreBackup, clearError } = useBackup();
@@ -7,20 +8,21 @@ export default function BackupRestore() {
   const [restoringBackup, setRestoringBackup] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
-  const [credentialsReady, setCredentialsReady] = useState(true);
+  const [credentialsReady, setCredentialsReady] = useState(null); // null = loading, false = not ready, true = ready
   const [setupUrl, setSetupUrl] = useState(null);
 
   // Get initial backup status
   useEffect(() => {
     getStatus()
       .then((result) => {
+        setCredentialsReady(result?.credentialsReady ?? false);
         if (result?.credentialsReady === false) {
-          setCredentialsReady(false);
           setSetupUrl(result?.setupUrl);
         }
       })
-      .catch(() => {
-        // Silently handle error on mount
+      .catch((err) => {
+        console.error('Failed to get backup status:', err);
+        setCredentialsReady(false);
       });
   }, [getStatus]);
 
@@ -53,8 +55,17 @@ export default function BackupRestore() {
     }
   };
 
-  const handleOpenSetup = () => {
-    window.open(setupUrl, '_blank');
+  const handleOpenSetup = async () => {
+    try {
+      // Fetch the setup endpoint to get the actual Google OAuth URL
+      const res = await fetch(`${API_BASE}/auth/google/setup`);
+      const data = await res.json();
+      if (data.setupUrl) {
+        window.open(data.setupUrl, '_blank');
+      }
+    } catch (err) {
+      console.error('Failed to get OAuth setup URL:', err);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -86,7 +97,7 @@ export default function BackupRestore() {
           <p className="text-sm font-semibold text-gray-900 mb-3">Backup & Restore</p>
 
           {/* OAuth Setup Required */}
-          {!credentialsReady && (
+          {credentialsReady === false && setupUrl && (
             <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-xs font-semibold text-yellow-900 mb-1">
                 ⚠️ Google Drive backup setup required

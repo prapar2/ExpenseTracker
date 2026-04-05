@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react';
-
-const API_BASE = import.meta.env.VITE_API_BASE || '';
+import { API_BASE } from '../utils/apiUtils';
 
 export function useBackup() {
   const [loading, setLoading] = useState(false);
@@ -11,7 +10,7 @@ export function useBackup() {
   const getStatus = useCallback(async () => {
     try {
       setError(null);
-      const response = await fetch(`${API_BASE}/app-api/backup/status`);
+      const response = await fetch(`${API_BASE}/backup/status`);
       
       if (!response.ok) throw new Error('Failed to fetch backup status');
       
@@ -31,7 +30,7 @@ export function useBackup() {
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${API_BASE}/app-api/backup/create`, {
+      const response = await fetch(`${API_BASE}/backup/create`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -62,7 +61,7 @@ export function useBackup() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE}/app-api/backup/restore`, {
+      const response = await fetch(`${API_BASE}/backup/restore`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });

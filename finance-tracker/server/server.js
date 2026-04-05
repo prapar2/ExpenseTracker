@@ -148,7 +148,7 @@ app.get('/app-api/auth/google/setup', (req, res) => {
     return res.json({ message: 'OAuth credentials already configured', setupUrl: null });
   }
 
-  const setupUrl = cloudStorage.generateSetupUrl();
+  const setupUrl = cloudStorage.generateSetupUrl(req);
   res.json({
     message: 'Click the URL below to authorize Finance Tracker with your Google account',
     setupUrl,
@@ -168,7 +168,7 @@ app.get('/app-api/auth/google/callback', async (req, res) => {
       return res.status(400).json({ error: 'No authorization code received' });
     }
 
-    const result = await cloudStorage.exchangeAuthorizationCode(code);
+    await cloudStorage.exchangeAuthorizationCode(code, req);
 
     // Return success HTML that redirects user back to app
     res.send(`
