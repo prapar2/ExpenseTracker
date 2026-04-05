@@ -12,7 +12,15 @@ const { startBackupScheduler } = require('./backupScheduler');
 
 const app = express();
 
-
+// HA ingress forwards requests with the ingress token stripped, but the React
+// app adds a '/app' basename for client-side routing. Strip it from API calls
+// so Express routes like /app-api/... match correctly.
+app.use((req, res, next) => {
+  if (req.path.startsWith('/app/')) {
+    req.url = req.url.slice(4); // strip leading /app
+  }
+  next();
+});
 
 app.use(express.json());
 
