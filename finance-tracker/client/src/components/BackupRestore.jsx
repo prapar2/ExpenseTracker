@@ -7,12 +7,21 @@ export default function BackupRestore() {
   const [restoringBackup, setRestoringBackup] = useState(false);
   const [showRestoreConfirm, setShowRestoreConfirm] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
+  const [credentialsReady, setCredentialsReady] = useState(true);
+  const [setupUrl, setSetupUrl] = useState(null);
 
   // Get initial backup status
   useEffect(() => {
-    getStatus().catch(() => {
-      // Silently handle error on mount
-    });
+    getStatus()
+      .then((result) => {
+        if (result?.credentialsReady === false) {
+          setCredentialsReady(false);
+          setSetupUrl(result?.setupUrl);
+        }
+      })
+      .catch(() => {
+        // Silently handle error on mount
+      });
   }, [getStatus]);
 
   const handleManualBackup = async () => {
@@ -44,6 +53,10 @@ export default function BackupRestore() {
     }
   };
 
+  const handleOpenSetup = () => {
+    window.open(setupUrl, '_blank');
+  };
+
   const formatDate = (dateString) => {
     if (!dateString) return 'Never';
     try {
@@ -72,25 +85,51 @@ export default function BackupRestore() {
         <div className="flex-1">
           <p className="text-sm font-semibold text-gray-900 mb-3">Backup & Restore</p>
 
-          {/* Backup Status */}
-          <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-            <p className="text-xs text-gray-600 mb-1">Last Backup:</p>
-            <p className="text-sm font-semibold text-gray-900">
-              {lastBackup?.lastBackup ? (
-                <>
-                  <span>{formatDate(lastBackup.lastBackup.modified)}</span>
-                  <span className="text-gray-500 font-normal"> ({formatSize(lastBackup.lastBackup.size)})</span>
-                </>
-              ) : (
-                'No backups found'
-              )}
-            </p>
-            {lastBackup?.daysOld !== undefined && (
-              <p className="text-xs text-gray-500 mt-1">
-                {lastBackup.daysOld === 0 ? 'Today' : `${lastBackup.daysOld} days ago`}
+          {/* OAuth Setup Required */}
+          {!credentialsReady && (
+            <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-xs font-semibold text-yellow-900 mb-1">
+                ⚠️ Google Drive backup setup required
               </p>
-            )}
-          </div>
+              <p className="text-xs text-yellow-700 mb-3">
+                To enable automatic backups, authorize the app with your Google account:
+              </p>
+              <button
+                onClick={handleOpenSetup}
+                className="w-full px-3 py-2 rounded-lg text-sm font-medium bg-yellow-600 text-white hover:bg-yellow-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Open Google Authorization
+              </button>
+              <p className="text-xs text-yellow-600 mt-2">
+                After authorization, refresh the app to start using backups.
+              </p>
+            </div>
+          )}
+
+          {/* Backup Status */}
+          {credentialsReady && (
+            <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+              <p className="text-xs text-gray-600 mb-1">Last Backup:</p>
+              <p className="text-sm font-semibold text-gray-900">
+                {lastBackup?.lastBackup ? (
+                  <>
+                    <span>{formatDate(lastBackup.lastBackup.modified)}</span>
+                    <span className="text-gray-500 font-normal"> ({formatSize(lastBackup.lastBackup.size)})</span>
+                  </>
+                ) : (
+                  'No backups found'
+                )}
+              </p>
+              {lastBackup?.daysOld !== undefined && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {lastBackup.daysOld === 0 ? 'Today' : `${lastBackup.daysOld} days ago`}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Success Message */}
           {successMessage && (
@@ -117,89 +156,91 @@ export default function BackupRestore() {
             </div>
           )}
 
-          {/* Actions */}
-          <div className="space-y-2">
-            {/* Create Backup Button */}
-            <button
-              onClick={handleManualBackup}
-              disabled={creatingBackup || loading}
-              className={`w-full px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-                creatingBackup || loading
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-              }`}
-            >
-              {creatingBackup ? (
-                <>
-                  <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Creating backup...
-                </>
-              ) : (
-                <>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Create Backup Now
-                </>
-              )}
-            </button>
-
-            {/* Restore Button */}
-            {!showRestoreConfirm ? (
+          {/* Actions - Only show if credentials ready */}
+          {credentialsReady && (
+            <div className="space-y-2">
+              {/* Create Backup Button */}
               <button
-                onClick={() => setShowRestoreConfirm(true)}
-                disabled={!lastBackup?.lastBackup || restoringBackup || loading}
+                onClick={handleManualBackup}
+                disabled={creatingBackup || loading}
                 className={`w-full px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
-                  !lastBackup?.lastBackup || restoringBackup || loading
+                  creatingBackup || loading
                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                    : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
                 }`}
               >
-                {restoringBackup ? (
+                {creatingBackup ? (
                   <>
                     <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                     </svg>
-                    Restoring...
+                    Creating backup...
                   </>
                 ) : (
                   <>
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                    Restore from Backup
+                    Create Backup Now
                   </>
                 )}
               </button>
-            ) : (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-xs font-semibold text-red-900 mb-2">
-                  ⚠️ Restore will replace current database with backup from {formatDate(lastBackup?.lastBackup?.modified)}
-                </p>
-                <p className="text-xs text-red-700 mb-3">
-                  Current database will be saved for safety. Continue?
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleRestoreBackup}
-                    disabled={restoringBackup}
-                    className="flex-1 px-2 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition-colors disabled:opacity-50"
-                  >
-                    {restoringBackup ? 'Restoring...' : 'Yes, Restore'}
-                  </button>
-                  <button
-                    onClick={() => setShowRestoreConfirm(false)}
-                    disabled={restoringBackup}
-                    className="flex-1 px-2 py-1.5 bg-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-400 transition-colors disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
+
+              {/* Restore Button */}
+              {!showRestoreConfirm ? (
+                <button
+                  onClick={() => setShowRestoreConfirm(true)}
+                  disabled={!lastBackup?.lastBackup || restoringBackup || loading}
+                  className={`w-full px-3 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors ${
+                    !lastBackup?.lastBackup || restoringBackup || loading
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                  }`}
+                >
+                  {restoringBackup ? (
+                    <>
+                      <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Restoring...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                      Restore from Backup
+                    </>
+                  )}
+                </button>
+              ) : (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-xs font-semibold text-red-900 mb-2">
+                    ⚠️ Restore will replace current database with backup from {formatDate(lastBackup?.lastBackup?.modified)}
+                  </p>
+                  <p className="text-xs text-red-700 mb-3">
+                    Current database will be saved for safety. Continue?
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleRestoreBackup}
+                      disabled={restoringBackup}
+                      className="flex-1 px-2 py-1.5 bg-red-600 text-white text-xs font-medium rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+                    >
+                      {restoringBackup ? 'Restoring...' : 'Yes, Restore'}
+                    </button>
+                    <button
+                      onClick={() => setShowRestoreConfirm(false)}
+                      disabled={restoringBackup}
+                      className="flex-1 px-2 py-1.5 bg-gray-300 text-gray-700 text-xs font-medium rounded hover:bg-gray-400 transition-colors disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <p className="text-xs text-gray-500 mt-3">
             💾 Backups are automatically created every Sunday at midnight and stored on Google Drive. Weekly backups help prevent data loss from corruption or crashes.

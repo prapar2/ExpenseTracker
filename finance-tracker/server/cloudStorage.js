@@ -6,22 +6,141 @@ const zlib = require('zlib');
 /**
  * Google Drive backup storage service using OAuth 2.0
  * Uses personal Google account credentials (stored as refresh token)
+ * 
+ * First-run setup flow:
+ * 1. If credentials missing, provides setup URL
+ * 2. User authorizes → Google redirects to /app-api/auth/google/callback
+ * 3. Refresh token extracted and stored locally
+ * 4. Subsequent app restarts use stored token
  */
 
 let auth = null;
+let credentialsReady = false;
+let setupInProgress = false;
+
+// OAuth 2.0 client configuration — set via environment variables
+const OAUTH_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID;
+const OAUTH_CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+const OAUTH_REDIRECT_URI = process.env.GOOGLE_OAUTH_REDIRECT_URI || 'http://localhost:3001/app-api/auth/google/callback';
+
+if (!OAUTH_CLIENT_ID || !OAUTH_CLIENT_SECRET) {
+  console.warn('⚠️  GOOGLE_OAUTH_CLIENT_ID / GOOGLE_OAUTH_CLIENT_SECRET not set. Backups disabled.');
+}
+
+/**
+ * Get path for storing credentials (persistent across restarts)
+ */
+function getCredentialsPath() {
+  return process.env.BACKUP_CREDENTIALS_PATH || path.join(__dirname, 'config/google-oauth.json');
+}
+
+/**
+ * Ensure credentials directory exists
+ */
+function ensureConfigDirectory() {
+  const credentialsPath = getCredentialsPath();
+  const configDir = path.dirname(credentialsPath);
+  
+  if (!fs.existsSync(configDir)) {
+    fs.mkdirSync(configDir, { recursive: true });
+    console.log(`Created config directory: ${configDir}`);
+  }
+}
+
+/**
+ * Check if credentials file exists
+ */
+function credentialsExist() {
+  return fs.existsSync(getCredentialsPath());
+}
+
+/**
+ * Save credentials to file (used after OAuth callback)
+ */
+function saveCredentials(credentials) {
+  try {
+    ensureConfigDirectory();
+    const credentialsPath = getCredentialsPath();
+    fs.writeFileSync(credentialsPath, JSON.stringify(credentials, null, 2), 'utf-8');
+    fs.chmodSync(credentialsPath, 0o600); // Restrict to owner only
+    console.log(`OAuth credentials saved to ${credentialsPath}`);
+    credentialsReady = true;
+  } catch (error) {
+    console.error('Failed to save credentials:', error.message);
+    throw error;
+  }
+}
+
+/**
+ * Generate OAuth setup URL for user authorization
+ */
+function generateSetupUrl() {
+  const oauth2Client = new google.auth.OAuth2(
+    OAUTH_CLIENT_ID,
+    OAUTH_CLIENT_SECRET,
+    OAUTH_REDIRECT_URI
+  );
+
+  const scopes = ['https://www.googleapis.com/auth/drive'];
+  
+  const authUrl = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: scopes,
+    prompt: 'consent' // Force consent screen every time
+  });
+
+  return authUrl;
+}
+
+/**
+ * Exchange authorization code for tokens (called from OAuth callback)
+ */
+async function exchangeAuthorizationCode(code) {
+  try {
+    const oauth2Client = new google.auth.OAuth2(
+      OAUTH_CLIENT_ID,
+      OAUTH_CLIENT_SECRET,
+      OAUTH_REDIRECT_URI
+    );
+
+    const { tokens } = await oauth2Client.getToken(code);
+    
+    // Save credentials with refresh token
+    const credentials = {
+      client_id: OAUTH_CLIENT_ID,
+      client_secret: OAUTH_CLIENT_SECRET,
+      redirect_uri: OAUTH_REDIRECT_URI,
+      refresh_token: tokens.refresh_token,
+      access_token: tokens.access_token,
+      token_type: tokens.token_type,
+      expiry_date: tokens.expiry_date
+    };
+
+    saveCredentials(credentials);
+    console.log('✅ OAuth setup complete! Refresh token saved.');
+    
+    return { success: true, message: 'OAuth authorization successful. You can now use backups.' };
+  } catch (error) {
+    console.error('OAuth token exchange failed:', error.message);
+    throw error;
+  }
+}
 
 /**
  * Initialize OAuth 2.0 authentication with stored refresh token
+ * If credentials don't exist, set up flag for first-run setup
  */
 function initializeAuth() {
   try {
-    const credentialsPath = process.env.BACKUP_CREDENTIALS_PATH || path.join(__dirname, 'config/google-oauth.json');
-    
-    if (!fs.existsSync(credentialsPath)) {
-      throw new Error(`OAuth credentials file not found at ${credentialsPath}. Run setup first: see BACKUP_SETUP.md`);
+    if (!credentialsExist()) {
+      credentialsReady = false;
+      console.warn('⚠️  OAuth credentials not found. Backups disabled.');
+      console.warn('📋 To enable backups, visit: http://localhost:3001/app-api/auth/google/setup');
+      console.warn('   (Or see documentation for detailed setup instructions)');
+      return null;
     }
 
-    const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf-8'));
+    const credentials = JSON.parse(fs.readFileSync(getCredentialsPath(), 'utf-8'));
     
     // Validate required fields
     if (!credentials.client_id || !credentials.client_secret || !credentials.refresh_token) {
@@ -39,10 +158,13 @@ function initializeAuth() {
       refresh_token: credentials.refresh_token
     });
 
+    credentialsReady = true;
+    console.log('✅ OAuth credentials loaded successfully');
     return auth;
   } catch (error) {
     console.error('Failed to initialize Google Drive OAuth:', error.message);
-    throw error;
+    credentialsReady = false;
+    return null;
   }
 }
 
@@ -491,4 +613,9 @@ module.exports = {
   cleanupOldBackups,
   testConnection,
   getBackupFolder
+,
+  exchangeAuthorizationCode,
+  generateSetupUrl,
+  credentialsExist,
+  isCredentialsReady: () => credentialsReady
 };

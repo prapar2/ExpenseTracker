@@ -713,39 +713,42 @@ DB_PATH=/data/finance.db
 
 **Automatic Weekly Backups** — Back up your database to Google Drive every Sunday at midnight (configurable).
 
-#### Quick Setup (OAuth 2.0)
+#### Quick Start (First-Run Setup)
 
-1. **Create Google Cloud Project** (one-time setup):
-   - Go to [Google Cloud Console](https://console.cloud.google.com/)
-   - Create a new project → `Personal Finance Tracker`
-   - Enable the **Google Drive API** (Search → select → Enable)
+**Option 1: Home Assistant OS Add-on**
 
-2. **Create OAuth 2.0 Credentials**:
-   - Navigate to **Credentials** → **+ Create Credentials** → **OAuth client ID**
-   - Choose **Desktop application**
-   - Download JSON → Save as `server/config/google-oauth.json` (.gitignore'd — never commit)
+1. Install and start the add-on normally
+2. Open the app → Settings → **Backup & Restore** section
+3. Click **"Open Google Authorization"** button
+4. Authorize the app with your Google account (you'll be redirected after)
+5. Refresh the app — backups are now enabled ✅
 
-3. **Get Refresh Token** (first run):
-   - Start the app: `docker compose up --build`
-   - The app will detect missing refresh token and log a setup link
-   - Open the link → Authorize your Google account
-   - Token is automatically stored in `google-oauth.json`
+**Option 2: Docker Compose (Local/Development)**
 
-4. **Rebuild & Restart**:
-   ```bash
-   docker compose down && docker compose up --build
-   ```
+1. Start the app: `docker compose up --build`
+2. Open http://localhost:3001 → Settings → **Backup & Restore**
+3. Click **"Open Google Authorization"** button
+4. Authorize with Google and wait for redirect
+5. Backups now work automatically ✅
 
-#### Environment Variables
+#### How It Works
 
-Set these in `docker-compose.yml` or Home Assistant add-on config:
+- **First Run:** App detects missing OAuth credentials and shows setup button in UI + logs setup URL
+- **Authorization:** You authorize Finance Tracker with your Google account (one-time)
+- **Token Storage:** Refresh token is automatically saved locally (never expires, survives restarts)
+- **Automatic Backups:** After setup, backups run every Sunday at midnight to your Google Drive
+- **No Manual Setup Needed:** Unlike before, no JSON files or Google Cloud Console required
+
+#### Environment Variables (Optional)
+
+Customize backup behavior in `docker-compose.yml`:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BACKUP_ENABLED` | `true` | Enable/disable automatic backups |
-| `BACKUP_SCHEDULE` | `0 0 * * 0` | Cron schedule (Sunday midnight = `0 0 * * 0`) |
-| `BACKUP_CREDENTIALS_PATH` | `/app/config/google-oauth.json` | Path to OAuth credentials inside container |
-| `BACKUP_SYSTEM_NAME` | `hostname` | prod/dev/staging identifier (appears in filename) |
+| `BACKUP_ENABLED` | `true` | Enable/disable backups (app runs either way) |
+| `BACKUP_SCHEDULE` | `0 0 * * 0` | Cron schedule (Sunday midnight) |
+| `BACKUP_CREDENTIALS_PATH` | `/app/config/google-oauth.json` | Where to store credentials locally |
+| `BACKUP_SYSTEM_NAME` | `hostname` | prod/dev/staging label in backup filenames |
 
 **Example docker-compose.yml:**
 ```yaml
@@ -753,81 +756,92 @@ services:
   app:
     environment:
       BACKUP_ENABLED: "true"
-      BACKUP_SCHEDULE: "0 0 * * 0"  # Sunday midnight
+      BACKUP_SCHEDULE: "0 0 * * 0"              # Sunday midnight
       BACKUP_CREDENTIALS_PATH: /app/config/google-oauth.json
-      BACKUP_SYSTEM_NAME: "prod"
+      BACKUP_SYSTEM_NAME: "dev"                 # Shows in filename: app_backup_dev_YYYY-MM-DD.db.gz
     volumes:
-      - ./server/config/google-oauth.json:/app/config/google-oauth.json:ro
+      - finance-db:/data
+```
+
+**Commonly Used Cron Schedules:**
+```yaml
+BACKUP_SCHEDULE: "0 0 * * 0"           # Sunday midnight (default)
+BACKUP_SCHEDULE: "0 0 * * *"           # Every day at midnight
+BACKUP_SCHEDULE: "0 2 * * 0"           # Sunday at 2:00 AM
+BACKUP_SCHEDULE: "0 0 1 * *"           # 1st of month at midnight
 ```
 
 #### Features
 
-- ✅ Automatic weekly backup to Google Drive (configurable schedule)
-- ✅ One-click manual backup anytime from Settings
-- ✅ One-click restore from latest backup
-- ✅ Database validation before/after restore
-- ✅ Automatic current DB backup during restore (safety measure)
-- ✅ Gzip compression (50x size reduction: 50MB → 0.1MB)
-- ✅ Success/failure toast notifications
-- ✅ Multi-instance support (prod/dev/staging differentiation)
+- ✅ **One-time authorization** — No JSON files or manual token setup
+- ✅ **Automatic weekly backups** to Google Drive (customizable schedule)
+- ✅ **One-click manual backup** anytime from Settings
+- ✅ **One-click restore** from latest backup with confirmation
+- ✅ **Database validation** before/after restore (prevents corrupt restores)
+- ✅ **Automatic safety backup** of current DB before restore
+- ✅ **Gzip compression** (50x size reduction: 50MB → 0.1MB)
+- ✅ **Multi-instance support** (prod/dev/staging in backup filenames)
+- ✅ **Success/failure notifications** in app UI
 
-#### Access Backups
+#### Access Your Backups
 
-1. **In-app:** Settings → **Backup & Restore** section
-   - View last backup timestamp and size
-   - Click "Create Backup Now" for manual backup
-   - Click "Restore from Backup" to restore (with confirmation)
+**In-App:**
+- Settings → **Backup & Restore** shows:
+  - Last backup date/time and file size
+  - "Create Backup Now" button for manual backup
+  - "Restore from Backup" button for recovery
 
-2. **In Google Drive:** 
-   - Backups stored in `Finance-Tracker-Backups` folder
-   - Filenames: `app_backup_{SYSTEM_NAME}_{DATE}.db.gz`
-   - Examples:
-     - `app_backup_prod_2026-04-05.db.gz` (production)
-     - `app_backup_dev_2026-04-05.db.gz` (development)
+**In Google Drive:**
+- Backups stored in **"Finance-Tracker-Backups"** folder
+- Filenames: `app_backup_{SYSTEM_NAME}_{DATE}.db.gz`
+- Examples:
+  - `app_backup_prod_2026-04-05.db.gz` (production)
+  - `app_backup_dev_2026-04-05.db.gz` (development)
 
 #### Multi-Instance Deployment
 
-Deploy production and development simultaneously — backups are automatically differentiated:
+Deploy multiple instances (prod, dev, staging) simultaneously — backups are automatically differentiated:
 
-```
+```yaml
 # Production (Home Assistant)
-BACKUP_SYSTEM_NAME=prod
+BACKUP_SYSTEM_NAME: prod
 
-# Development (Docker Compose local)
-BACKUP_SYSTEM_NAME=dev
+# Development (Docker local)
+BACKUP_SYSTEM_NAME: dev
 
 # Staging (optional)
-BACKUP_SYSTEM_NAME=staging
+BACKUP_SYSTEM_NAME: staging
 ```
 
-All backups upload to the same Google Drive folder but are clearly labeled with the instance name.
+All backups upload to the same Google Drive folder but are clearly labeled by instance.
 
 #### Troubleshooting
 
 | Issue | Solution |
 |-------|----------|
-| "Backup credentials not found" | Place `google-oauth.json` in `server/config/` and mount to `/app/config/google-oauth.json` |
-| "invalid_client" error | Ensure `.client_secret` and `.client_id` in JSON match your Google Cloud credentials |
-| Backups not running | Check `BACKUP_ENABLED=true` and Docker logs: `docker compose logs -f app` |
-| Authorization link not appearing | Restart container; first run triggers setup flow |
-| Can't restore: "Database validation failed" | Database may be corrupted; restore attempts previous backup if available |
+| "Setup button" still showing after restart | Refresh browser (Ctrl+F5 or Cmd+Shift+R to clear cache) |
+| Authorization fails ("invalid_client") | Ensure pop-up wasn't blocked; check browser console for errors |
+| "Backups not running" | Check `BACKUP_ENABLED=true` and Docker logs: `docker compose logs -f app` |
+| No backups in Google Drive | Verify you authorized with the correct Google account; manual backup takes ~5 seconds |
+| Restore fails: "Database validation failed" | Database may be corrupted; restore attempts previous backup if available |
+
 #### Data Recovery Scenarios
 
 **Scenario 1: Corrupted Database**
 - **Problem:** Database is corrupted and app won't start
-- **Solution:** Go to Settings → Click **Restore from Backup** → Confirm → App automatically recovers and reloads
+- **Solution:** Settings → Click **Restore from Backup** → Confirm → App auto-recovers
 
 **Scenario 2: Accidental Data Deletion**
 - **Problem:** Important data was deleted
-- **Solution:** Restore from backup (will overwrite current data with prior backup state)
+- **Solution:** Restore from backup (replaces current data with prior backup state)
 
 **Scenario 3: Fresh Installation**
 - **Problem:** Need to reinstall or move to new server
-- **Solution:** Deploy app normally → Go to Settings → **Restore from Backup** → All historical data restored
+- **Solution:** Deploy app → Settings → **Restore from Backup** → All data restored
 
 **Scenario 4: Container Crash**
 - **Problem:** Docker container crashed
-- **Solution:** 
+- **Solution:**
   ```bash
   # If data volume intact, automatic recovery:
   docker compose up --build -d
@@ -841,39 +855,39 @@ All backups upload to the same Google Drive folder but are clearly labeled with 
 
 #### Security Best Practices
 
-**Do**:
-- ✅ Keep `google-oauth.json` secure and not in version control
-- ✅ Use personal Google account OAuth (not service account)
-- ✅ Verify backup folder not shared publicly in Google Drive
+**Do:**
+- ✅ Keep authorization one-time-only (you don't need to do it again)
+- ✅ Verify backups appear in your Google Drive
 - ✅ Test restore regularly to ensure backups work
-- ✅ Monitor backups weekly to catch failures early
+- ✅ Monitor backup folder in Google Drive weekly
 
-**Don't**:
-- ⚠️ Commit `google-oauth.json` to Git (always use `.gitignore`)
-- ⚠️ Share OAuth credentials with others
-- ⚠️ Use unsecured connections (HTTPS only in production)
-- ⚠️ Ignore backup failures or notifications
+**Don't:**
+- ⚠️ Share authorization link or credentials with others
+- ⚠️ Give the app drive permissions you don't intend (only Drive API needed)
+- ⚠️ Ignore backup failures for more than a week
 
 #### Monitoring & Maintenance
 
-**Check Last Backup**:
+**Check Last Backup:**
 - **Via UI:** Settings → Backup & Restore shows "Last Backup: [date/time]"
-- **Via CLI:** `docker compose logs finance-tracker | grep -i backup`
+- **Via CLI:** `docker compose logs app | grep -i backup`
 
-**Verify on Google Drive**:
+**Verify on Google Drive:**
 1. Open [Google Drive](https://drive.google.com)
-2. Navigate to "Finance-Tracker-Backups" folder
+2. Find **"Finance-Tracker-Backups"** folder
 3. Confirm latest backup is from today or this week
 4. File size typically 100 KB – 5 MB
 
-**Backup Schedule Changes**:
+**Backup Schedule Changes:**
 ```yaml
-# docker-compose.yml - Modify BACKUP_SCHEDULE cron:
+# docker-compose.yml - update BACKUP_SCHEDULE cron:
 BACKUP_SCHEDULE: "0 0 * * 0"    # Sunday midnight (default)
 BACKUP_SCHEDULE: "0 0 * * *"    # Daily at midnight
 BACKUP_SCHEDULE: "0 2 * * 0"    # Sunday at 2:00 AM
 BACKUP_SCHEDULE: "0 0 1 * *"    # 1st of month at midnight
 ```
+
+Then restart: `docker compose up --build -d`
 
 #### Disabling Backups (Temporary)
 
@@ -885,12 +899,10 @@ environment:
   BACKUP_ENABLED: "false"
 ```
 
-Then restart:
-```bash
-docker compose up --build -d
-```
+Then restart: `docker compose up --build -d`
 
 **Note:** Manual backups via Settings will still be available; only scheduled backups are disabled.
+
 For detailed architecture and implementation details, see [ARCHITECTURE.md](../ARCHITECTURE.md#backup--recovery-system).
 
 ### Tailwind Colour Tokens

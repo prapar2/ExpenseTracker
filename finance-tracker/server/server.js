@@ -7,6 +7,7 @@ const { parseImportFile } = require('./import');
 const { generateExportBuffer } = require('./export');
 const db = require('./db');
 const backupService = require('./backupService');
+const cloudStorage = require('./cloudStorage');
 const { startBackupScheduler } = require('./backupScheduler');
 
 const app = express();
@@ -141,9 +142,102 @@ app.post('/app-api/import', upload.single('file'), (req, res) => {
   });
 });
 
+// OAuth 2.0 Setup Routes
+app.get('/app-api/auth/google/setup', (req, res) => {
+  if (cloudStorage.credentialsExist()) {
+    return res.json({ message: 'OAuth credentials already configured', setupUrl: null });
+  }
+
+  const setupUrl = cloudStorage.generateSetupUrl();
+  res.json({
+    message: 'Click the URL below to authorize Finance Tracker with your Google account',
+    setupUrl,
+    instructions: 'You will be redirected after authorization. Refresh the app and backups will be enabled.'
+  });
+});
+
+app.get('/app-api/auth/google/callback', async (req, res) => {
+  try {
+    const { code, error } = req.query;
+
+    if (error) {
+      return res.status(400).json({ error: `Authorization failed: ${error}` });
+    }
+
+    if (!code) {
+      return res.status(400).json({ error: 'No authorization code received' });
+    }
+
+    const result = await cloudStorage.exchangeAuthorizationCode(code);
+
+    // Return success HTML that redirects user back to app
+    res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>Finance Tracker - OAuth Setup</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; background: #f5f5f5; }
+            .container { max-width: 400px; margin: 100px auto; padding: 20px; background: white; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .success { color: #1A6B3A; font-size: 48px; margin-bottom: 10px; }
+            h1 { color: #1B3A6B; margin: 0 0 10px 0; }
+            p { color: #666; margin: 10px 0; }
+            .button { background: #1B3A6B; color: white; padding: 10px 20px; border-radius: 4px; text-decoration: none; display: inline-block; margin-top: 20px; }
+            .button:hover { background: #2E75B6; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="success">✓</div>
+            <h1>Authorization Successful!</h1>
+            <p>OAuth setup is complete. Google Drive backups are now enabled.</p>
+            <p>Go back to the Finance Tracker app and confirm backups are working in Settings → Backup & Restore.</p>
+            <a href="/" class="button">Return to App</a>
+          </div>
+        </body>
+      </html>
+    `);
+  } catch (error) {
+    console.error('OAuth callback error:', error.message);
+    res.status(500).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; background: #f5f5f5; }
+            .container { max-width: 400px; margin: 100px auto; padding: 20px; background: white; border-radius: 8px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+            .error { color: #B03030; font-size: 48px; margin-bottom: 10px; }
+            h1 { color: #1B3A6B; }
+            p { color: #666; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="error">✗</div>
+            <h1>Authorization Failed</h1>
+            <p>${error.message}</p>
+            <p><a href="/">Return to App</a></p>
+          </div>
+        </body>
+      </html>
+    `);
+  }
+});
+
 // Backup and Recovery routes
 app.get('/app-api/backup/status', async (req, res) => {
   try {
+    if (!cloudStorage.isCredentialsReady()) {
+      return res.json({
+        success: false,
+        credentialsReady: false,
+        message: 'OAuth credentials not configured. Please complete setup first.',
+        setupUrl: '/app-api/auth/google/setup'
+      });
+    }
+
     const status = await backupService.getBackupStatus();
     res.json(status);
   } catch (error) {
@@ -153,6 +247,13 @@ app.get('/app-api/backup/status', async (req, res) => {
 
 app.post('/app-api/backup/create', async (req, res) => {
   try {
+    if (!cloudStorage.isCredentialsReady()) {
+      return res.status(400).json({
+        error: 'OAuth credentials not configured. Please complete setup first.',
+        setupUrl: '/app-api/auth/google/setup'
+      });
+    }
+
     const result = await backupService.createBackup();
     if (result.success) {
       res.status(200).json(result);
@@ -166,6 +267,13 @@ app.post('/app-api/backup/create', async (req, res) => {
 
 app.post('/app-api/backup/restore', async (req, res) => {
   try {
+    if (!cloudStorage.isCredentialsReady()) {
+      return res.status(400).json({
+        error: 'OAuth credentials not configured. Please complete setup first.',
+        setupUrl: '/app-api/auth/google/setup'
+      });
+    }
+
     const result = await backupService.restoreBackup();
     if (result.success) {
       res.status(200).json(result);
@@ -211,13 +319,32 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
 
-  // Start backup scheduler if enabled
+  // Initialize OAuth for backups
   if (process.env.BACKUP_ENABLED === 'true') {
     try {
-      const schedule = process.env.BACKUP_SCHEDULE || '0 0 * * 0'; // Default: Sunday midnight
-      startBackupScheduler(schedule);
+      cloudStorage.initializeAuth();
+      
+      if (cloudStorage.isCredentialsReady()) {
+        // Backups are configured, start scheduler
+        const schedule = process.env.BACKUP_SCHEDULE || '0 0 * * 0'; // Default: Sunday midnight
+        startBackupScheduler(schedule);
+        console.log('✅ Backup scheduler active');
+      } else {
+        // Credentials missing - backups disabled but app running
+        console.log('');
+        console.log('═══════════════════════════════════════════════════════════');
+        console.log('📋 BACKUPS NOT CONFIGURED');
+        console.log('═══════════════════════════════════════════════════════════');
+        console.log('To enable Google Drive backups:');
+        console.log(`  1. Visit: http://localhost:${PORT}/app-api/auth/google/setup`);
+        console.log('  2. Authorize with your Google account');
+        console.log('  3. Restart the app');
+        console.log('  4. Backups will run automatically every Sunday at midnight');
+        console.log('═══════════════════════════════════════════════════════════');
+        console.log('');
+      }
     } catch (error) {
-      console.error('Failed to start backup scheduler:', error.message);
+      console.error('Failed to initialize backups:', error.message);
     }
   }
 });
