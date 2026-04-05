@@ -596,7 +596,7 @@ Manage the taxonomy of transaction types, categories, and subcategories.
 | Component | Lines | Responsibility |
 |-----------|-------|----------------|
 | `BudgetGrid.jsx` | 197 | Inline-editable 12-month spreadsheet-style grid with row/column action menus |
-| `BudgetVsActualTable.jsx` | 67 | Reusable Budget vs Actual comparison table used in both monthly and yearly dashboard views |
+| `BudgetVsActualTable.jsx` | 266 | 3-level hierarchical Budget vs Actual comparison table (Type → Category → Subcategory); expandable/collapsible with rollup variance and % used calculations at each level |
 | `ConfirmDialog.jsx` | 17 | Modal confirmation dialog; cannot be dismissed by clicking outside — Confirm/Cancel buttons only |
 | `FilterBar.jsx` | 56 | Multi-select pill filter for Type/Category/Subcategory with cascading logic |
 | `ImportDialog.jsx` | 221 | Modal dialog for importing transactions and budgets from Excel files; displays upload progress and results summary |
@@ -763,6 +763,5 @@ Enforced per the technology specification (limits increased by 20% to accommodat
 - **No ORM** — raw SQL only, all queries contained in `server/db.js`
 - **No test files** — no `.test.js`, `.spec.js`, or test framework configuration
 - **Single FY view** — all screens scope to one selected FY at a time; multi-FY comparison not supported
-- **No export functionality** — data export not implemented in this version
 - **No authentication** — designed for single-user local/private deployment
 - **Node 25 compatibility** — requires `better-sqlite3` v11+ (v9 does not compile against Node 25 headers which require C++20)

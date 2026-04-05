@@ -206,8 +206,9 @@ client/src/
 │
 ├── components/              # Reusable UI components
 │   ├── BudgetGrid.jsx       # Spreadsheet-style inline-editable budget grid
-│   ├── BudgetVsActualTable.jsx  # Budget vs actual comparison
+│   ├── BudgetVsActualTable.jsx  # 3-level hierarchical Budget vs Actual comparison (Type → Category → Subcategory)
 │   ├── ConfirmDialog.jsx    # Modal confirmation dialog
+│   ├── ExportDialog.jsx     # Excel export modal
 │   ├── FilterBar.jsx        # Multi-select filter pills
 │   ├── ImportDialog.jsx     # Excel import modal
 │   ├── KPICard.jsx          # Single metric card
@@ -239,7 +240,7 @@ client/src/
 
 | Page | Route | Purpose | Key Features |
 |------|-------|---------|--------------|
-| **Dashboard** | `/` | Primary reporting screen | KPIs, budget vs actual table, donut spending breakdown, trend lines, drill-through to transactions |
+| **Dashboard** | `/` | Primary reporting screen | KPIs, 3-level Budget vs Actual table (Type → Category → Subcategory with rollup variance), donut spending breakdown, trend lines, drill-through to transactions |
 | **Transactions** | `/transactions` | Data entry & management | CRUD form, month selector, advanced filtering (Type/Category/Subcategory), sortable table, edit/delete actions |
 | **Budget** | `/budget` | Budget management | 12-month grid editor, seed+copy forward, row actions, inline editing, actuals toggle |
 | **Categories** | `/categories` | Taxonomy management | 3-panel editor (Types/Categories/Subcategories), add/rename/delete with referential integrity checking, drag-drop reorder |
@@ -267,6 +268,14 @@ client/src/
 
 ### Component Patterns
 
+**Hierarchical Table:**
+- `BudgetVsActualTable` — 3-level tree: Transaction Type → Category → Subcategory
+  - Each level shows rollup Budget, Actual, Variance (color-coded by type), and % Used
+  - Expandable/collapsible with state persisted to session storage
+  - Chevron icons indicate expansion state; Type level has blue background, category level has gray
+  - Proper indentation for visual hierarchy (subcategories at level 3)
+  - Drill-through from any hierarchy level (Type, Category, or Subcategory)
+
 **Controlled Forms:**
 - `TransactionForm` — Controlled inputs, validation on submit, optional pre-fill for edit mode
 
@@ -276,6 +285,7 @@ client/src/
 **Modal Dialogs:**
 - `ConfirmDialog` — Cannot be dismissed by clicking outside (button-only dismissal)
 - `ImportDialog` — File upload with progress display and results summary
+- `ExportDialog` — Download data as Excel file with results display
 - `MonthPicker` — 12-month grid selector
 
 **Drill-through:**

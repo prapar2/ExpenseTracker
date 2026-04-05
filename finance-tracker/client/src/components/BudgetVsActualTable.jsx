@@ -39,43 +39,64 @@ export default function BudgetVsActualTable({ rows, onDrillActual, onDrillProjec
     grouped[r.type][r.category].push(r);
   }
 
-  // Get all unique type-category combinations
-  const allKeys = [];
+  // Get all unique type-category combinations and types
+  const allTypeKeys = [];
+  const allCatKeys = [];
   TYPES.forEach(type => {
     if (grouped[type]) {
+      allTypeKeys.push(type);
       Object.keys(grouped[type]).forEach(cat => {
-        allKeys.push(`${type}|${cat}`);
+        allCatKeys.push(`${type}|${cat}`);
       });
     }
   });
 
-  function isExpanded(type, category) {
+  function isTypeExpanded(type) {
+    const key = `type|${type}`;
+    return explicitlyCollapsed[key] !== false;
+  }
+
+  function toggleType(type) {
+    const key = `type|${type}`;
+    setExplicitlyCollapsed(prev => ({
+      ...prev,
+      [key]: !isTypeExpanded(type)
+    }));
+  }
+
+  function isCategoryExpanded(type, category) {
     const key = `${type}|${category}`;
     return explicitlyCollapsed[key] !== false;
   }
 
-  function toggleItem(type, category) {
+  function toggleCategory(type, category) {
     const key = `${type}|${category}`;
     setExplicitlyCollapsed(prev => ({
       ...prev,
-      [key]: !isExpanded(type, category)
+      [key]: !isCategoryExpanded(type, category)
     }));
   }
 
   function expandAll() {
     const allExpanded = {};
-    allKeys.forEach(key => { allExpanded[key] = true; });
+    allTypeKeys.forEach(type => { allExpanded[`type|${type}`] = true; });
+    allCatKeys.forEach(key => { allExpanded[key] = true; });
     setExplicitlyCollapsed(allExpanded);
   }
 
   function collapseAll() {
     const allCollapsed = {};
-    allKeys.forEach(key => { allCollapsed[key] = false; });
+    allTypeKeys.forEach(type => { allCollapsed[`type|${type}`] = false; });
+    allCatKeys.forEach(key => { allCollapsed[key] = false; });
     setExplicitlyCollapsed(allCollapsed);
   }
 
-  const allExpanded = allKeys.length > 0 && allKeys.every(key => explicitlyCollapsed[key] !== false);
-  const allCollapsed = allKeys.length > 0 && allKeys.every(key => explicitlyCollapsed[key] === false);
+  const allExpanded = allTypeKeys.length > 0 && 
+    allTypeKeys.every(t => isTypeExpanded(t)) && 
+    allCatKeys.every(key => isCategoryExpanded(key.split('|')[0], key.split('|')[1]));
+  const allCollapsed = allTypeKeys.length > 0 && 
+    allTypeKeys.every(t => !isTypeExpanded(t)) && 
+    allCatKeys.every(key => !isCategoryExpanded(key.split('|')[0], key.split('|')[1]));
 
   function varClass(variance, type) {
     if (variance == null) return 'text-gray-400';
@@ -89,7 +110,7 @@ export default function BudgetVsActualTable({ rows, onDrillActual, onDrillProjec
   return (
     <div>
       {/* Expand/Collapse Controls */}
-      {allKeys.length > 0 && (
+      {allTypeKeys.length > 0 && (
         <div className="flex items-center gap-2 px-4 py-2 bg-gray-50 border-b">
           <span className="text-xs text-gray-500 mr-2">Quick actions:</span>
           <button 
@@ -114,7 +135,7 @@ export default function BudgetVsActualTable({ rows, onDrillActual, onDrillProjec
             Collapse All
           </button>
           <span className="text-xs text-gray-400 ml-auto">
-            {allKeys.filter(key => explicitlyCollapsed[key] !== false).length} of {allKeys.length} sections expanded
+            {allTypeKeys.filter(t => isTypeExpanded(t)).length} of {allTypeKeys.length} types expanded
           </span>
         </div>
       )}
@@ -131,57 +152,106 @@ export default function BudgetVsActualTable({ rows, onDrillActual, onDrillProjec
             </tr>
           </thead>
           <tbody>
-            {existingTypes.map(type =>
-              Object.entries(grouped[type]).map(([cat, catRows]) => {
-                const isItemExpanded = isExpanded(type, cat);
-                const catActual = catRows.reduce((s, r) => s + r.actual, 0);
-                const catBudget = catRows.every(r => r.budget !== null) ? catRows.reduce((s, r) => s + (r.budget || 0), 0) : null;
-                
-                return [
-                  <tr key={`cat-${type}-${cat}`} className="bg-gray-100">
-                    <td className="px-3 py-2 font-bold text-gray-800">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => toggleItem(type, cat)}
-                          className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 transition-colors"
-                          title={isItemExpanded ? 'Collapse' : 'Expand'}
+            {existingTypes.map(type => {
+              const isTypeExp = isTypeExpanded(type);
+              const typeCategories = Object.entries(grouped[type]);
+              const typeActual = typeCategories.reduce((sum, [_, catRows]) => sum + catRows.reduce((s, r) => s + r.actual, 0), 0);
+              const typeBudget = typeCategories.every(([_, catRows]) => catRows.every(r => r.budget !== null)) 
+                ? typeCategories.reduce((sum, [_, catRows]) => sum + catRows.reduce((s, r) => s + (r.budget || 0), 0), 0)
+                : null;
+              const typeVariance = typeBudget !== null ? typeActual - typeBudget : null;
+              const typePctUsed = typeBudget !== null && typeBudget > 0 ? typeActual / typeBudget : null;
+
+              return [
+                // Type header row (Level 1)
+                <tr key={`type-${type}`} className="bg-blue-50">
+                  <td className="px-3 py-3 font-bold text-gray-900">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleType(type)}
+                        className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 transition-colors"
+                        title={isTypeExp ? 'Collapse' : 'Expand'}
+                      >
+                        <svg 
+                          className={`w-4 h-4 text-gray-700 transition-transform ${isTypeExp ? 'rotate-90' : ''}`} 
+                          fill="none" 
+                          stroke="currentColor" 
+                          viewBox="0 0 24 24"
                         >
-                          <svg 
-                            className={`w-3 h-3 text-gray-600 transition-transform ${isItemExpanded ? 'rotate-90' : ''}`} 
-                            fill="none" 
-                            stroke="currentColor" 
-                            viewBox="0 0 24 24"
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                      <span>{type}</span>
+                      <span className="text-xs text-gray-500 font-normal">
+                        ({typeCategories.length} {typeCategories.length === 1 ? 'category' : 'categories'})
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-3 py-3 text-right font-bold text-gray-900">{typeBudget != null ? formatINR(typeBudget) : '—'}</td>
+                  <td className="px-3 py-3 text-right font-bold text-gray-900">
+                    <button onClick={() => onDrillActual(type, null, null)} className="hover:underline text-blue-600 font-bold">{formatINR(typeActual)}</button>
+                  </td>
+                  <td className={`px-3 py-3 text-right font-bold ${varClass(typeVariance, type)}`}>{typeVariance != null ? formatINR(typeVariance) : '—'}</td>
+                  <td className="px-3 py-3 text-right font-bold text-gray-700">{formatPct(typePctUsed)}</td>
+                </tr>,
+
+                // Category and subcategory rows (Level 2 & 3) — only if type is expanded
+                ...(isTypeExp ? typeCategories.map(([cat, catRows]) => {
+                  const isCatExp = isCategoryExpanded(type, cat);
+                  const catActual = catRows.reduce((s, r) => s + r.actual, 0);
+                  const catBudget = catRows.every(r => r.budget !== null) ? catRows.reduce((s, r) => s + (r.budget || 0), 0) : null;
+                  const catVariance = catBudget !== null ? catActual - catBudget : null;
+                  const catPctUsed = catBudget !== null && catBudget > 0 ? catActual / catBudget : null;
+
+                  return [
+                    // Category header row (Level 2)
+                    <tr key={`cat-${type}-${cat}`} className="bg-gray-100">
+                      <td className="px-3 py-2 font-bold text-gray-800 pl-8">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleCategory(type, cat)}
+                            className="flex-shrink-0 w-5 h-5 flex items-center justify-center rounded hover:bg-gray-200 transition-colors"
+                            title={isCatExp ? 'Collapse' : 'Expand'}
                           >
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        </button>
-                        <span className="text-xs text-gray-500 mr-1">{type}</span>
-                        <span>{cat}</span>
-                        <span className="text-xs text-gray-400 font-normal">
-                          ({catRows.length} {catRows.length === 1 ? 'item' : 'items'})
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-2 text-right font-semibold">{catBudget != null ? formatINR(catBudget) : '—'}</td>
-                    <td className="px-3 py-2 text-right font-semibold">
-                      <button onClick={() => onDrillActual(type, cat, null)} className="hover:underline text-blue-600 font-semibold">{formatINR(catActual)}</button>
-                    </td>
-                    <td colSpan={2}></td>
-                  </tr>,
-                  ...(isItemExpanded ? catRows.map(r => (
-                    <tr key={`${type}-${cat}-${r.subcategory}`} className="hover:bg-gray-50 border-b">
-                      <td className="px-3 py-2 pl-12 text-gray-700">{r.subcategory}</td>
-                      <td className="px-3 py-2 text-right">{r.budget != null ? formatINR(r.budget) : '—'}</td>
-                      <td className="px-3 py-2 text-right">
-                        <button onClick={() => onDrillActual(type, cat, r.subcategory)} className="hover:underline text-blue-600">{formatINR(r.actual)}</button>
+                            <svg 
+                              className={`w-3 h-3 text-gray-600 transition-transform ${isCatExp ? 'rotate-90' : ''}`} 
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </button>
+                          <span>{cat}</span>
+                          <span className="text-xs text-gray-400 font-normal">
+                            ({catRows.length} {catRows.length === 1 ? 'item' : 'items'})
+                          </span>
+                        </div>
                       </td>
-                      <td className={`px-3 py-2 text-right ${varClass(r.variance, type)}`}>{r.variance != null ? formatINR(r.variance) : '—'}</td>
-                      <td className="px-3 py-2 text-right text-gray-600">{formatPct(r.pctUsed)}</td>
-                    </tr>
-                  )) : []),
-                ];
-              })
-            )}
+                      <td className="px-3 py-2 text-right font-semibold">{catBudget != null ? formatINR(catBudget) : '—'}</td>
+                      <td className="px-3 py-2 text-right font-semibold">
+                        <button onClick={() => onDrillActual(type, cat, null)} className="hover:underline text-blue-600 font-semibold">{formatINR(catActual)}</button>
+                      </td>
+                      <td className={`px-3 py-2 text-right font-semibold ${varClass(catVariance, type)}`}>{catVariance != null ? formatINR(catVariance) : '—'}</td>
+                      <td className="px-3 py-2 text-right font-semibold text-gray-600">{formatPct(catPctUsed)}</td>
+                    </tr>,
+
+                    // Subcategory rows (Level 3) — only if category is expanded
+                    ...(isCatExp ? catRows.map(r => (
+                      <tr key={`${type}-${cat}-${r.subcategory}`} className="hover:bg-gray-50 border-b">
+                        <td className="px-3 py-2 pl-16 text-gray-700">{r.subcategory}</td>
+                        <td className="px-3 py-2 text-right">{r.budget != null ? formatINR(r.budget) : '—'}</td>
+                        <td className="px-3 py-2 text-right">
+                          <button onClick={() => onDrillActual(type, cat, r.subcategory)} className="hover:underline text-blue-600">{formatINR(r.actual)}</button>
+                        </td>
+                        <td className={`px-3 py-2 text-right ${varClass(r.variance, type)}`}>{r.variance != null ? formatINR(r.variance) : '—'}</td>
+                        <td className="px-3 py-2 text-right text-gray-600">{formatPct(r.pctUsed)}</td>
+                      </tr>
+                    )) : []),
+                  ];
+                }) : []),
+              ];
+            })}
           </tbody>
         </table>
       </div>
