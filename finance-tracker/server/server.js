@@ -239,7 +239,7 @@ app.get('/app-api/backup/status', async (req, res) => {
     }
 
     const status = await backupService.getBackupStatus();
-    res.json(status);
+    res.json({ ...status, credentialsReady: true });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

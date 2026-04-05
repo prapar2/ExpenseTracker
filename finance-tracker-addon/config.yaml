@@ -21,3 +21,13 @@ startup: application
 boot: auto
 image: "ghcr.io/prapar2/finance-tracker-addon/{arch}"
 init: false
+options:
+  GOOGLE_OAUTH_CLIENT_ID: ""
+  GOOGLE_OAUTH_CLIENT_SECRET: ""
+  BACKUP_ENABLED: false
+  BACKUP_SYSTEM_NAME: "home-assistant"
+schema:
+  GOOGLE_OAUTH_CLIENT_ID: str
+  GOOGLE_OAUTH_CLIENT_SECRET: str
+  BACKUP_ENABLED: bool
+  BACKUP_SYSTEM_NAME: str

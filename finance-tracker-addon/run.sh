@@ -3,10 +3,14 @@
 # ── Environment ────────────────────────────────────────────────────────────
 export DB_PATH="/data/finance.db"
 export PORT="3001"
-export BACKUP_ENABLED="true"
-export BACKUP_SCHEDULE="0 0 * * 0"
 export BACKUP_CREDENTIALS_PATH="/data/google-oauth.json"
-export BACKUP_SYSTEM_NAME="prod"
+export BACKUP_SCHEDULE="0 0 * * 0"
+
+# Read user-configured options from HA add-on config
+export GOOGLE_OAUTH_CLIENT_ID="$(bashio::config 'GOOGLE_OAUTH_CLIENT_ID')"
+export GOOGLE_OAUTH_CLIENT_SECRET="$(bashio::config 'GOOGLE_OAUTH_CLIENT_SECRET')"
+export BACKUP_ENABLED="$(bashio::config 'BACKUP_ENABLED')"
+export BACKUP_SYSTEM_NAME="$(bashio::config 'BACKUP_SYSTEM_NAME')"
 
 # ── First-run database initialisation ─────────────────────────────────────
 if [ ! -f "${DB_PATH}" ]; then

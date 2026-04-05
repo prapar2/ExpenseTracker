@@ -15,8 +15,11 @@ export default function BackupRestore() {
   useEffect(() => {
     getStatus()
       .then((result) => {
-        setCredentialsReady(result?.credentialsReady ?? false);
-        if (result?.credentialsReady === false) {
+        // credentialsReady is only present when false (not configured)
+        // If absent, credentials are ready (response contains backup data)
+        const ready = result?.credentialsReady !== false;
+        setCredentialsReady(ready);
+        if (!ready) {
           setSetupUrl(result?.setupUrl);
         }
       })
