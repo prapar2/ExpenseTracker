@@ -5,3 +5,10 @@ finance.db
 dist/
 client/dist/
 .env
+
+# Backup and credentials
+server/config/google-credentials.json
+server/config/*.json
+data/backups/
+.env.local
+

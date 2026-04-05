@@ -17,7 +17,7 @@ export default function Budget({ fyStart }) {
   const [confirm, setConfirm] = useState(null);
 
   const { data: budgets, loading, error, saveBulk, reload } = useBudget(fyStart);
-  const { data: allTx } = useTransactions(null);
+  const { data: allTx } = useTransactions(null, fyStart);
   const { items: taxonomy } = useTaxonomy();
 
   // Build budget map: type|category|subcategory|month -> amount

@@ -8,10 +8,17 @@ services:
     volumes:
       # Named volume so the SQLite database persists across container restarts and rebuilds
       - finance-db:/data
+      # Mount OAuth credentials file for Google Drive backups
+      - ./server/config/google-oauth.json:/app/config/google-oauth.json:ro
     environment:
       NODE_ENV: production
       PORT: 3001
       DB_PATH: /data/finance.db
+      # Backup configuration
+      BACKUP_ENABLED: "true"
+      BACKUP_SCHEDULE: "0 0 * * 0"
+      BACKUP_CREDENTIALS_PATH: /app/config/google-oauth.json
+      BACKUP_SYSTEM_NAME: "dev"
     restart: unless-stopped
 
 volumes:

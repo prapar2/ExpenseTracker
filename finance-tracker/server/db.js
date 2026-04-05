@@ -307,7 +307,7 @@ function getBudgetsByFy(fyStart) {
   return db.prepare('SELECT * FROM budgets WHERE fy_start=? ORDER BY month ASC').all(fyStart);
 }
 
-function getBudgets(month) {
+function getBudgetsByMonth(month) {
   return db.prepare('SELECT * FROM budgets WHERE month=?').all(month);
 }
 
@@ -319,5 +319,5 @@ module.exports = {
   resetDatabase, resetFy,
   bulkInsertTransactions, bulkUpsertBudgets,
   getTransactionsByFy, getTransactionsByMonth,
-  getBudgetsByFy, getBudgets,
+  getBudgetsByFy, getBudgetsByMonth,
 };

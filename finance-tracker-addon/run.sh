@@ -3,6 +3,10 @@
 # ── Environment ────────────────────────────────────────────────────────────
 export DB_PATH="/data/finance.db"
 export PORT="3001"
+export BACKUP_ENABLED="true"
+export BACKUP_SCHEDULE="0 0 * * 0"
+export BACKUP_CREDENTIALS_PATH="/data/google-oauth.json"
+export BACKUP_SYSTEM_NAME="prod"
 
 # ── First-run database initialisation ─────────────────────────────────────
 if [ ! -f "${DB_PATH}" ]; then

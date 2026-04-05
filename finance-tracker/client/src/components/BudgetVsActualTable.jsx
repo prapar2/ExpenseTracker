@@ -100,7 +100,10 @@ export default function BudgetVsActualTable({ rows, onDrillActual, onDrillProjec
 
   function varClass(variance, type) {
     if (variance == null) return 'text-gray-400';
-    if (type === 'Income') return variance >= 0 ? 'text-green-600' : 'text-yellow-600';
+    if (type === 'Income' || type === 'Saving') {
+      return variance >= 0 ? 'text-green-600' : 'text-red-600';
+    }
+    // Expense: green when spent less (variance <= 0), red when overspent
     return variance <= 0 ? 'text-green-600' : 'text-red-600';
   }
 
@@ -156,11 +159,10 @@ export default function BudgetVsActualTable({ rows, onDrillActual, onDrillProjec
               const isTypeExp = isTypeExpanded(type);
               const typeCategories = Object.entries(grouped[type]);
               const typeActual = typeCategories.reduce((sum, [_, catRows]) => sum + catRows.reduce((s, r) => s + r.actual, 0), 0);
-              const typeBudget = typeCategories.every(([_, catRows]) => catRows.every(r => r.budget !== null)) 
-                ? typeCategories.reduce((sum, [_, catRows]) => sum + catRows.reduce((s, r) => s + (r.budget || 0), 0), 0)
-                : null;
-              const typeVariance = typeBudget !== null ? typeActual - typeBudget : null;
-              const typePctUsed = typeBudget !== null && typeBudget > 0 ? typeActual / typeBudget : null;
+              const typeBudget = typeCategories.reduce((sum, [_, catRows]) => sum + catRows.reduce((s, r) => s + (r.budget || 0), 0), 0);
+              const typeAnyBudgeted = typeCategories.some(([_, catRows]) => catRows.some(r => r.budget !== null));
+              const typeVariance = typeAnyBudgeted ? typeActual - typeBudget : null;
+              const typePctUsed = typeAnyBudgeted && typeBudget > 0 ? typeActual / typeBudget : null;
 
               return [
                 // Type header row (Level 1)
@@ -187,7 +189,7 @@ export default function BudgetVsActualTable({ rows, onDrillActual, onDrillProjec
                       </span>
                     </div>
                   </td>
-                  <td className="px-3 py-3 text-right font-bold text-gray-900">{typeBudget != null ? formatINR(typeBudget) : '—'}</td>
+                  <td className="px-3 py-3 text-right font-bold text-gray-900">{typeAnyBudgeted ? formatINR(typeBudget) : '—'}</td>
                   <td className="px-3 py-3 text-right font-bold text-gray-900">
                     <button onClick={() => onDrillActual(type, null, null)} className="hover:underline text-blue-600 font-bold">{formatINR(typeActual)}</button>
                   </td>
@@ -199,9 +201,10 @@ export default function BudgetVsActualTable({ rows, onDrillActual, onDrillProjec
                 ...(isTypeExp ? typeCategories.map(([cat, catRows]) => {
                   const isCatExp = isCategoryExpanded(type, cat);
                   const catActual = catRows.reduce((s, r) => s + r.actual, 0);
-                  const catBudget = catRows.every(r => r.budget !== null) ? catRows.reduce((s, r) => s + (r.budget || 0), 0) : null;
-                  const catVariance = catBudget !== null ? catActual - catBudget : null;
-                  const catPctUsed = catBudget !== null && catBudget > 0 ? catActual / catBudget : null;
+                  const catBudget = catRows.reduce((s, r) => s + (r.budget || 0), 0);
+                  const catAnyBudgeted = catRows.some(r => r.budget !== null);
+                  const catVariance = catAnyBudgeted ? catActual - catBudget : null;
+                  const catPctUsed = catAnyBudgeted && catBudget > 0 ? catActual / catBudget : null;
 
                   return [
                     // Category header row (Level 2)
@@ -228,7 +231,7 @@ export default function BudgetVsActualTable({ rows, onDrillActual, onDrillProjec
                           </span>
                         </div>
                       </td>
-                      <td className="px-3 py-2 text-right font-semibold">{catBudget != null ? formatINR(catBudget) : '—'}</td>
+                      <td className="px-3 py-2 text-right font-semibold">{catAnyBudgeted ? formatINR(catBudget) : '—'}</td>
                       <td className="px-3 py-2 text-right font-semibold">
                         <button onClick={() => onDrillActual(type, cat, null)} className="hover:underline text-blue-600 font-semibold">{formatINR(catActual)}</button>
                       </td>

@@ -17,6 +17,10 @@
 8. [Data Flow](#data-flow)
 9. [Key Design Decisions](#key-design-decisions)
 10. [Development Workflow](#development-workflow)
+11. [Backup & Recovery System](#backup--recovery-system)
+12. [Performance Considerations](#performance-considerations)
+13. [Security Considerations](#security-considerations)
+14. [Future Enhancements](#future-enhancements)
 
 ---
 
@@ -622,6 +626,291 @@ docker compose up --build
 4. **Utility functions pure** — No side effects (dateUtils, calcUtils, formatUtils)
 5. **Components are dumb** — No business logic, only presentation
 6. **Database layer synchronous** — No async/await in db.js
+
+---
+
+## Backup & Recovery System
+
+### Overview
+
+The application implements **automated weekly backups** to Google Drive using OAuth 2.0 authentication. Backups are triggered on **Sunday at midnight** (cron: `0 0 * * 0`, configurable), with one-click manual backup and restore capabilities.
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Application (React + Express)                              │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  BackupRestore Component / Backup Scheduler           │  │
+│  │  • Manual backup trigger                              │  │
+│  │  • Restore confirmation dialog                        │  │
+│  │  • Status display (last backup time/size)             │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                            ↓                                 │
+│  ┌───────────────────────────────────────────────────────┐  │
+│  │  Backend Services:                                    │  │
+│  │  • backupService.js - Orchestration                  │  │
+│  │  • backupScheduler.js - Cron jobs                    │  │
+│  │  • databaseValidator.js - Integrity checks            │  │
+│  │  • cloudStorage.js - Google Drive API                │  │
+│  └───────────────────────────────────────────────────────┘  │
+│                            ↓                                 │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+        ┌──────────────────────────────────────┐
+        │   OAuth 2.0 Google Account          │
+        │  (User's personal Google account)   │
+        └──────────────────────────────────────┘
+                            ↓
+        ┌──────────────────────────────────────┐
+        │   Google Drive API                  │
+        │  • Finance-Tracker-Backups folder   │
+        │  • Automatic folder creation        │
+        │  • Upload/download/list operations  │
+        └──────────────────────────────────────┘
+```
+
+### Components
+
+#### 1. OAuth 2.0 Authentication (`server/cloudStorage.js`)
+
+Uses OAuth 2.0 with **personal Google account** (not service account). Why?
+- Service accounts have storage quota limitations (cannot access personal Drive)
+- Personal OAuth allows direct writing to user's Google Drive
+- Refresh token persists credentials across server restarts
+
+**Setup:**
+1. Create Google Cloud project
+2. Create OAuth 2.0 credentials (Desktop application)
+3. Obtain refresh token (first manual run)
+4. Store credentials in `server/config/google-oauth.json` (`.gitignore`d)
+
+**Environment Variables:**
+```env
+BACKUP_CREDENTIALS_PATH=/app/config/google-oauth.json  # OAuth credentials location
+BACKUP_ENABLED=true                                      # Enable/disable backups
+BACKUP_SCHEDULE="0 0 * * 0"                              # Cron (Sunday midnight)
+BACKUP_SYSTEM_NAME="prod"                                # prod/dev for differentiation
+```
+
+#### 2. Backup Service (`server/backupService.js`)
+
+Orchestrates the backup and restore workflow:
+
+```javascript
+// Backup workflow:
+1. validateDatabase(dbPath)        // Ensure database is not corrupt
+2. compress database → gzip         // DB (~50MB) → compressed (~0.1MB)
+3. upload to Google Drive           // Store in Finance-Tracker-Backups/
+4. cleanupOldBackups()              // Keep only latest backup
+5. return metadata (filename, size, timestamp)
+
+// Restore workflow:
+1. backup currentDatabase()         // Save current DB as safety measure
+2. download latestBackup()          // Download from Drive
+3. validateDatabase(restoredDB)     // Verify integrity before swap
+4. replace applicationDatabase()    // Atomic file replacement
+5. return status
+```
+
+**Features:**
+- ✅ Pre-backup validation (detects corrupt DB)
+- ✅ Gzip compression (reduces size 50x)
+- ✅ Atomic filesystem operations
+- ✅ Pre-restore safety backup (current DB preserved)
+- ✅ Post-restore validation
+- ✅ Error rollback (restore old DB on failure)
+
+#### 3. Cron Scheduler (`server/backupScheduler.js`)
+
+Uses `node-cron` for recurring backup execution:
+
+```javascript
+// Default schedule: Sunday at midnight (UTC)
+const schedule = process.env.BACKUP_SCHEDULE || "0 0 * * 0";
+// Cron format: second minute hour day month(1-12) day-of-week(0-6)
+
+// Typical schedules:
+"0 0 * * 0"     // Sunday midnight
+"0 2 * * *"     // Daily at 2 AM
+"0 * * * *"     // Hourly
+```
+
+- Starts on app initialization if `BACKUP_ENABLED=true`
+- Runs in-process (no external scheduler needed)
+- Gracefully stops on server shutdown
+- Logs all backup attempts
+
+#### 4. Database Validator (`server/databaseValidator.js`)
+
+Checks SQLite database integrity before backup/restore:
+
+```javascript
+// Integrity checks:
+✓ PRAGMA integrity_check    // SQLite built-in corruption check
+✓ Table existence          // Verify schema tables present
+✓ Metadata collection      // File size, row counts, table count
+
+// Returns metadata:
+{
+  isValid: true/false,
+  metadata: {
+    fileSize: 52428800,
+    tableCount: 8,
+    transactionCount: 1523,
+    budgetCount: 144,
+    taxonomyCount: 45
+  }
+}
+```
+
+#### 5. Google Drive Integration (`server/cloudStorage.js`)
+
+Wrapper around Google Drive API:
+
+```javascript
+Functions:
+- initializeAuth()          // Load OAuth credentials, create Drive client
+- getBackupFolder()         // Find/create Finance-Tracker-Backups folder
+- uploadBackup(dbPath, fileName)       // Compress & upload file
+- downloadLatestBackup(outputPath)     // Download & decompress latest
+- listBackups()             // List all backup files in folder
+- cleanupOldBackups(keepCount)         // Delete old, keep N latest
+- testConnection()          // Verify OAuth token validity
+```
+
+### Multi-Instance Support (prod/dev Differentiation)
+
+Backups from different deployment instances are differentiated by filename:
+
+```
+Filename format: app_backup_{INSTANCE_NAME}_{DATE}.db.gz
+
+Examples:
+app_backup_prod_2026-04-05.db.gz   # Production (Home Assistant)
+app_backup_dev_2026-04-05.db.gz    # Development (Docker Compose)
+app_backup_staging_2026-04-05.db.gz # Staging (optional)
+```
+
+**Configuration:**
+- **Production:** Set `BACKUP_SYSTEM_NAME=prod` in Home Assistant environment
+- **Development:** Set `BACKUP_SYSTEM_NAME=dev` in docker-compose.yml
+- **Default:** Falls back to system hostname
+
+**Benefits:**
+- Prevents accidental restore of dev data to production
+- Easy identification of backup source in Google Drive
+- Enables parallel multi-instance deployments
+
+### API Endpoints
+
+```javascript
+// Get backup status (last backup metadata)
+GET /app-api/backup/status
+Response: {
+  success: true,
+  lastBackup: {
+    fileName: "app_backup_prod_2026-04-05.db.gz",
+    size: "6275",
+    modified: "2026-04-05T11:00:43.154Z"
+  },
+  nextScheduled: "2026-04-06T00:00:00Z"
+}
+
+// Create manual backup (triggers immediately)
+POST /app-api/backup/create
+Response: {
+  success: true,
+  fileName: "app_backup_prod_2026-04-05.db.gz",
+  size: "6275",
+  modified: "2026-04-05T11:00:43.154Z"
+}
+
+// Restore from latest backup (requires confirmation)
+POST /app-api/backup/restore
+Body: { confirmed: true }
+Response: {
+  success: true,
+  restoredFileName: "app_backup_prod_2026-04-05.db.gz",
+  message: "Database successfully restored"
+}
+```
+
+### Frontend Integration
+
+**Component:** `client/components/BackupRestore.jsx`
+
+```javascript
+Features:
+• Last backup timestamp and file size display
+• "Create Backup Now" button (with loading spinner)
+• "Restore from Backup" button
+• Restore confirmation dialog with safety warning
+• Success/error toast notifications
+• Responsive mobile layout
+```
+
+**Hook:** `client/hooks/useBackup.js`
+
+```javascript
+Hook functions:
+- getStatus()          // Fetch backup metadata
+- createBackup()       // Trigger manual backup
+- restoreBackup()      // Trigger restore with confirmation
+
+State:
+- loading: boolean     // API call in progress
+- error: string|null   // Error message if failed
+- lastBackup: object   // Metadata of last backup
+```
+
+### Deployment Scenarios
+
+#### Scenario 1: Home Assistant Add-on (Production)
+
+```yaml
+# environment variables set in Home Assistant addon
+BACKUP_ENABLED=true
+BACKUP_SCHEDULE="0 0 * * 0"                               # Sunday midnight
+BACKUP_CREDENTIALS_PATH=/app/config/google-oauth.json    # Mounted volume
+BACKUP_SYSTEM_NAME=prod                                  # Production identifier
+```
+
+**Setup:**
+1. Create OAuth credentials (one-time, offline)
+2. Mount JSON file to `/app/config/google-oauth.json`
+3. Set environment variables in add-on config
+4. Restart add-on
+5. Backups run automatically every Sunday at midnight
+6. Manual backups trigger from Settings → Backup & Restore
+
+#### Scenario 2: Docker Compose (Development)
+
+```yaml
+# docker-compose.yml
+services:
+  app:
+    environment:
+      BACKUP_ENABLED: "true"
+      BACKUP_SCHEDULE: "0 */6 * * *"                      # Every 6 hours
+      BACKUP_CREDENTIALS_PATH: /app/config/google-oauth.json
+      BACKUP_SYSTEM_NAME: "dev"                           # Development identifier
+    volumes:
+      - ./server/config/google-oauth.json:/app/config/google-oauth.json:ro
+```
+
+#### Scenario 3: Multiple Deployments (prod + staging + dev)
+
+All using same Google account, backups differentiated by filename:
+
+```
+Google Drive Finance-Tracker-Backups/
+├── app_backup_prod_2026-04-05.db.gz
+├── app_backup_staging_2026-04-05.db.gz
+└── app_backup_dev_2026-04-05.db.gz
+```
+
+Each system has independent `BACKUP_SYSTEM_NAME` variable.
 
 ---
 

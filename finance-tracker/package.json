@@ -1,6 +1,6 @@
 {
   "name": "finance-tracker",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run server\" \"npm run client\"",
@@ -13,7 +13,9 @@
     "better-sqlite3": "^11.10.0",
     "dotenv": "^17.3.1",
     "express": "^4.19.2",
+    "googleapis": "^131.0.0",
     "multer": "^2.1.0",
+    "node-cron": "^3.0.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.23.1",

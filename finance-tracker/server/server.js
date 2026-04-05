@@ -6,6 +6,8 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 *
 const { parseImportFile } = require('./import');
 const { generateExportBuffer } = require('./export');
 const db = require('./db');
+const backupService = require('./backupService');
+const { startBackupScheduler } = require('./backupScheduler');
 
 const app = express();
 
@@ -139,6 +141,42 @@ app.post('/app-api/import', upload.single('file'), (req, res) => {
   });
 });
 
+// Backup and Recovery routes
+app.get('/app-api/backup/status', async (req, res) => {
+  try {
+    const status = await backupService.getBackupStatus();
+    res.json(status);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/app-api/backup/create', async (req, res) => {
+  try {
+    const result = await backupService.createBackup();
+    if (result.success) {
+      res.status(200).json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/app-api/backup/restore', async (req, res) => {
+  try {
+    const result = await backupService.restoreBackup();
+    if (result.success) {
+      res.status(200).json(result);
+    } else {
+      res.status(500).json(result);
+    }
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Export route
 app.get('/app-api/export', (req, res) => {
   const { fy_start, month } = req.query;
@@ -172,4 +210,14 @@ app.get('*', (req, res) => {
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on http://0.0.0.0:${PORT}`);
+
+  // Start backup scheduler if enabled
+  if (process.env.BACKUP_ENABLED === 'true') {
+    try {
+      const schedule = process.env.BACKUP_SCHEDULE || '0 0 * * 0'; // Default: Sunday midnight
+      startBackupScheduler(schedule);
+    } catch (error) {
+      console.error('Failed to start backup scheduler:', error.message);
+    }
+  }
 });
