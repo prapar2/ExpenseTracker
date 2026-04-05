@@ -10,19 +10,19 @@ A single-user personal finance tracking web application for recording transactio
 2. [Docker](#docker)
 3. [Home Assistant OS Add-on](#home-assistant-os-add-on)
 4. [Technology Stack](#technology-stack)
-4. [Project Structure](#project-structure)
-5. [Architecture & Design Decisions](#architecture--design-decisions)
-6. [Database Schema](#database-schema)
-7. [API Reference](#api-reference)
-8. [Frontend Pages](#frontend-pages)
-9. [Components](#components)
-10. [Contexts](#contexts)
-11. [Hooks](#hooks)
-12. [Utilities](#utilities)
-13. [Seed Data](#seed-data)
-14. [Configuration](#configuration)
-15. [File Line Limits](#file-line-limits)
-16. [Known Constraints](#known-constraints)
+5. [Project Structure](#project-structure)
+6. [Architecture & Design Decisions](#architecture--design-decisions)
+7. [Database Schema](#database-schema)
+8. [API Reference](#api-reference)
+9. [Frontend Pages](#frontend-pages)
+10. [Components](#components)
+11. [Contexts](#contexts)
+12. [Hooks](#hooks)
+13. [Utilities](#utilities)
+14. [Seed Data](#seed-data)
+15. [Configuration](#configuration)
+16. [File Line Limits](#file-line-limits)
+17. [Known Constraints](#known-constraints)
 
 ---
 
@@ -293,6 +293,8 @@ finance-tracker/
 ---
 
 ## Architecture & Design Decisions
+
+> **For comprehensive architecture documentation**, see [ARCHITECTURE.md](../ARCHITECTURE.md) (system design, data flow, state management patterns, design rationale, performance considerations).
 
 ### Financial Year Scoping
 All screens scope to a single selected Financial Year at a time. The active FY is chosen from the Settings modal — a rolling window of 4 FYs is always available (2 years back, current, 1 year forward). The FY label (e.g. "FY 2025-26") is displayed in the navbar. Changing the selected FY recalculates boundaries in-memory across all pages — no data is deleted. The FY start month is fixed at April (configurable in code via `FY_START_MONTH` constant in `App.jsx`).
