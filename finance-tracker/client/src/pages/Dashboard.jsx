@@ -16,7 +16,11 @@ import { formatINR } from '../utils/formatUtils';
 import { currentMonth, getFYMonths, getMonthLabel, isElapsed, isCurrent } from '../utils/dateUtils';
 
 const TYPE_COLORS = { Income: '#2E75B6', Expense: '#B03030', Saving: '#1A6B3A' };
-const DONUT_COLORS = ['#2E75B6','#B03030','#1A6B3A','#856404','#6B3A1B','#3A6B1B','#1B3A6B','#6B1B3A'];
+const DONUT_COLORS = {
+  Income:  ['#1B3A6B','#2E75B6','#5B9BD5','#7B68EE','#6A5ACD','#9370DB','#8A63D2','#B0A0E0'],
+  Expense: ['#B03030','#D04040','#8B4513','#A0522D','#CD853F','#B8860B','#D4A017','#C06030'],
+  Saving:  ['#1A6B3A','#2E8B57','#3CB371','#66CDAA','#DB7093','#C71585','#E075A0','#50C878'],
+};
 const TYPES = ['Income', 'Expense', 'Saving'];
 
 export default function Dashboard({ fyStart }) {
@@ -37,7 +41,9 @@ export default function Dashboard({ fyStart }) {
   const [insightsOpen, setInsightsOpen] = useState(true);
 
   function drillTo(m, type, cat, sub) {
-    nav('/transactions', { state: { month: m, types: type ? [type] : [], categories: cat ? [cat] : [], subcategories: sub ? [sub] : [] } });
+    const state = { types: type ? [type] : [], categories: cat ? [cat] : [], subcategories: sub ? [sub] : [] };
+    if (m) state.month = m;
+    nav('/transactions', { state });
   }
   function openMonthPicker(cb) { setMonthPickerCb(() => cb); setMonthPickerOpen(true); }
 
@@ -111,11 +117,11 @@ export default function Dashboard({ fyStart }) {
               <p className="text-gray-400">No {donutType} data this month.</p>
             </div>
           ) : (
-            <div className="flex justify-center">
-              <PieChart width={400} height={300}>
+            <div className="flex items-center justify-center gap-4">
+              <PieChart width={320} height={300}>
                 <Pie 
                   data={activeDonut} 
-                  cx={200} 
+                  cx={160} 
                   cy={140} 
                   innerRadius={80} 
                   outerRadius={120} 
@@ -124,11 +130,14 @@ export default function Dashboard({ fyStart }) {
                   onClick={(e) => { if (!donutDrill) setDonutDrill(e.name); }}
                   paddingAngle={2}
                 >
-                  {activeDonut.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
+                  {activeDonut.map((_, i) => <Cell key={i} fill={DONUT_COLORS[donutType][i % DONUT_COLORS[donutType].length]} />)}
                 </Pie>
                 <Tooltip formatter={(v) => formatINR(v)} />
-                <Legend 
-                  wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                <Legend
+                  layout="vertical"
+                  align="right"
+                  verticalAlign="middle"
+                  wrapperStyle={{ fontSize: '12px', lineHeight: '24px', paddingLeft: '10px' }}
                   formatter={(value) => <span className="text-gray-600">{value}</span>}
                 />
               </PieChart>
@@ -176,6 +185,8 @@ export default function Dashboard({ fyStart }) {
             <p className="text-3xl font-bold text-gray-600">{remaining}</p>
           </div>
         </div>
+
+        <IncomeAllocationBar summary={ytd} />
 
         {/* Month-by-Month Chart - Modern Card */}
         <div className="card p-5">
@@ -305,7 +316,7 @@ export default function Dashboard({ fyStart }) {
       )}
 
       {monthPickerOpen && (
-        <MonthPicker months={fyMonths} selected={month} onChange={m => monthPickerCb && monthPickerCb(m)} onClose={() => { setMonthPickerOpen(false); setMonthPickerCb(null); }} />
+        <MonthPicker months={fyMonths} selected={month} onChange={m => monthPickerCb && monthPickerCb(m)} onClose={() => { setMonthPickerOpen(false); setMonthPickerCb(null); }} showEntireFY={view === 'yearly'} />
       )}
     </div>
   );

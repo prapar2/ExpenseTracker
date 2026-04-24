@@ -77,7 +77,7 @@ export default function Categories() {
     if (!newSubName.trim() || !selectedCategory) return;
     setError(null);
     try {
-      await actions.createEntry({ type: selectedType, category: selectedType, subcategory: newSubName.trim() });
+      await actions.createEntry({ type: selectedType, category: selectedCategory, subcategory: newSubName.trim() });
       await reload();
       setAddingSub(false);
       setNewSubName('');

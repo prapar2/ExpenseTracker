@@ -1,6 +1,6 @@
 import { getMonthLabel } from '../utils/dateUtils';
 
-export default function MonthPicker({ months, selected, onChange, onClose }) {
+export default function MonthPicker({ months, selected, onChange, onClose, showEntireFY = false }) {
   return (
     <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in">
       <div className="bg-white rounded-2xl shadow-xl max-w-md w-full overflow-hidden animate-slide-up">
@@ -13,6 +13,14 @@ export default function MonthPicker({ months, selected, onChange, onClose }) {
         {/* Content */}
         <div className="p-6">
           <div className="grid grid-cols-3 gap-3">
+            {showEntireFY && (
+              <button
+                onClick={() => { onChange(null); onClose(); }}
+                className="col-span-3 py-3 px-4 rounded-xl text-sm font-medium transition-all bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200"
+              >
+                Entire FY
+              </button>
+            )}
             {months.map(m => {
               const isSelected = m === selected;
               return (
