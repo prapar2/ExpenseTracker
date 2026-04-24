@@ -117,6 +117,12 @@ app.get('/app-api/dashboard/yearly', (req, res) => {
   res.json(db.getDashboardYearly(fy_start));
 });
 
+app.get('/app-api/dashboard/category-trend', (req, res) => {
+  const { fy_start } = req.query;
+  if (!fy_start) return res.status(400).json({ error: 'fy_start required' });
+  res.json(db.getDashboardCategoryTrend(fy_start));
+});
+
 app.post('/app-api/reset', (req, res) => {
   try {
     const { fy_start, full } = req.body;

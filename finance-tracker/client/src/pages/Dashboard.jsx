@@ -1,16 +1,22 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, ReferenceLine } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line, ReferenceLine } from 'recharts';
 import KPICard from '../components/KPICard';
 import ProjectionCard from '../components/ProjectionCard';
 import MonthPicker from '../components/MonthPicker';
 import BudgetVsActualTable from '../components/BudgetVsActualTable';
+import IncomeAllocationBar from '../components/IncomeAllocationBar';
+import TopExpensesChart from '../components/TopExpensesChart';
+import CumulativeNetChart from '../components/CumulativeNetChart';
+import SavingsRateChart from '../components/SavingsRateChart';
+import ExpenseCategoryTrend from '../components/ExpenseCategoryTrend';
+import SpendingBreakdown from '../components/SpendingBreakdown';
 import { useDashboard } from '../hooks/useDashboard';
+import { useCategoryTrend } from '../hooks/useCategoryTrend';
 import { formatINR } from '../utils/formatUtils';
 import { currentMonth, getFYMonths, getMonthLabel, isElapsed, isCurrent } from '../utils/dateUtils';
 
 const TYPE_COLORS = { Income: '#2E75B6', Expense: '#B03030', Saving: '#1A6B3A' };
-const DONUT_COLORS = ['#2E75B6','#B03030','#1A6B3A','#856404','#6B3A1B','#3A6B1B','#1B3A6B','#6B1B3A'];
 const TYPES = ['Income', 'Expense', 'Saving'];
 
 export default function Dashboard({ fyStart }) {
@@ -21,26 +27,22 @@ export default function Dashboard({ fyStart }) {
 
   // Reset selected month when FY changes to avoid showing a month outside the new FY
   useEffect(() => { if (!fyMonths.includes(month)) setMonth(fyMonths[0]); }, [fyStart]);
-  const [donutType, setDonutType] = useState('Expense');
-  const [donutDrill, setDonutDrill] = useState(null);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [monthPickerCb, setMonthPickerCb] = useState(null);
 
   const { data, loading, error } = useDashboard(view, month, fyStart);
+  const { data: trendData } = useCategoryTrend(fyStart, view === 'yearly');
+  const [insightsOpen, setInsightsOpen] = useState(true);
 
   function drillTo(m, type, cat, sub) {
-    nav('/transactions', { state: { month: m, types: type ? [type] : [], categories: cat ? [cat] : [], subcategories: sub ? [sub] : [] } });
+    const state = { types: type ? [type] : [], categories: cat ? [cat] : [], subcategories: sub ? [sub] : [] };
+    if (m) state.month = m;
+    nav('/transactions', { state });
   }
   function openMonthPicker(cb) { setMonthPickerCb(() => cb); setMonthPickerOpen(true); }
 
   function renderMonthly() {
     const { summary, budgetVsActual } = data;
-    const donutRaw = budgetVsActual.filter(r => r.type === donutType);
-    const donutByCat = {};
-    for (const r of donutRaw) donutByCat[r.category] = (donutByCat[r.category] || 0) + r.actual;
-    const donutData = Object.entries(donutByCat).map(([name, value]) => ({ name, value })).filter(d => d.value > 0);
-    const donutSubData = donutDrill ? donutRaw.filter(r => r.category === donutDrill).map(r => ({ name: r.subcategory, value: r.actual })).filter(d => d.value > 0) : [];
-    const activeDonut = donutDrill ? donutSubData : donutData;
 
     return (
       <div className="space-y-6">
@@ -52,6 +54,8 @@ export default function Dashboard({ fyStart }) {
           <KPICard label="Net" amount={summary.net} colorClass={summary.net >= 0 ? 'text-green-600' : 'text-red-600'} onClick={() => drillTo(month, null, null, null)} />
         </div>
 
+        <IncomeAllocationBar summary={summary} />
+
         {/* Budget vs Actual - Modern Card */}
         <div className="card overflow-hidden">
           <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -61,70 +65,9 @@ export default function Dashboard({ fyStart }) {
           <BudgetVsActualTable rows={budgetVsActual} onDrillActual={(t, c, s) => drillTo(month, t, c, s)} />
         </div>
 
-        {/* Spending Breakdown - Modern Card */}
-        <div className="card p-5">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="font-semibold text-gray-900">{donutDrill ? `${donutDrill} Breakdown` : 'Spending Breakdown'}</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Click segments to drill down</p>
-            </div>
-            <div className="flex gap-2">
-              {donutDrill && (
-                <button onClick={() => setDonutDrill(null)} className="btn-ghost text-sm py-1.5">
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                  </svg>
-                  Back
-                </button>
-              )}
-              {TYPES.map(t => (
-                <button 
-                  key={t} 
-                  onClick={() => { setDonutType(t); setDonutDrill(null); }}
-                  className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-all ${
-                    donutType === t 
-                      ? 'bg-blue-600 text-white shadow-sm' 
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-          {activeDonut.length === 0 ? (
-            <div className="text-center py-12">
-              <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
-              </svg>
-              <p className="text-gray-400">No {donutType} data this month.</p>
-            </div>
-          ) : (
-            <div className="flex justify-center">
-              <PieChart width={400} height={300}>
-                <Pie 
-                  data={activeDonut} 
-                  cx={200} 
-                  cy={140} 
-                  innerRadius={80} 
-                  outerRadius={120} 
-                  dataKey="value" 
-                  nameKey="name"
-                  onClick={(e) => { if (!donutDrill) setDonutDrill(e.name); }}
-                  paddingAngle={2}
-                >
-                  {activeDonut.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
-                </Pie>
-                <Tooltip formatter={(v) => formatINR(v)} />
-                <Legend 
-                  wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
-                  formatter={(value) => <span className="text-gray-600">{value}</span>}
-                />
-              </PieChart>
-            </div>
-          )}
-        </div>
+        <SpendingBreakdown budgetVsActual={budgetVsActual} />
+
+        <TopExpensesChart budgetVsActual={budgetVsActual} onDrill={(cat) => drillTo(month, 'Expense', cat, null)} />
       </div>
     );
   }
@@ -165,6 +108,8 @@ export default function Dashboard({ fyStart }) {
           </div>
         </div>
 
+        <IncomeAllocationBar summary={ytd} />
+
         {/* Month-by-Month Chart - Modern Card */}
         <div className="card p-5">
           <h3 className="font-semibold text-gray-900 mb-4">Month-by-Month Overview</h3>
@@ -200,6 +145,27 @@ export default function Dashboard({ fyStart }) {
             <h3 className="font-semibold text-gray-900">Annual Budget vs Actual</h3>
           </div>
           <BudgetVsActualTable rows={budgetVsActual} onDrillActual={(t, c, s) => openMonthPicker(m => drillTo(m, t, c, s))} />
+        </div>
+
+        {/* Collapsible Insights Section */}
+        <div className="card overflow-hidden">
+          <button
+            onClick={() => setInsightsOpen(o => !o)}
+            className="w-full px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+          >
+            <h3 className="font-semibold text-gray-900">Insights</h3>
+            <svg className={`w-5 h-5 text-gray-400 transition-transform ${insightsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {insightsOpen && (
+            <div className="p-5 space-y-6">
+              <CumulativeNetChart monthData={monthData} />
+              <SavingsRateChart monthData={monthData} />
+              <ExpenseCategoryTrend trendData={trendData} />
+              <SpendingBreakdown budgetVsActual={budgetVsActual} title="YTD Spending Breakdown" />
+            </div>
+          )}
         </div>
       </div>
     );
@@ -273,7 +239,7 @@ export default function Dashboard({ fyStart }) {
       )}
 
       {monthPickerOpen && (
-        <MonthPicker months={fyMonths} selected={month} onChange={m => monthPickerCb && monthPickerCb(m)} onClose={() => { setMonthPickerOpen(false); setMonthPickerCb(null); }} />
+        <MonthPicker months={fyMonths} selected={month} onChange={m => monthPickerCb && monthPickerCb(m)} onClose={() => { setMonthPickerOpen(false); setMonthPickerCb(null); }} showEntireFY={view === 'yearly'} />
       )}
     </div>
   );
