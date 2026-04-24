@@ -311,6 +311,31 @@ function getBudgetsByMonth(month) {
   return db.prepare('SELECT * FROM budgets WHERE month=?').all(month);
 }
 
+function getDashboardCategoryTrend(fy_start) {
+  const months = [];
+  const [fyYr, fyMo] = fy_start.split('-').map(Number);
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(fyYr, fyMo - 1 + i, 1);
+    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+  }
+  const endDate = new Date(fyYr, fyMo - 1 + 12, 1);
+  const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-01`;
+
+  const rows = db.prepare(`
+    SELECT substr(date,1,7) as month, category, SUM(amount) as total
+    FROM transactions
+    WHERE date >= ? AND date < ? AND type = 'Expense'
+    GROUP BY month, category
+    ORDER BY month ASC
+  `).all(fy_start + '-01', endStr);
+
+  const catTotals = {};
+  for (const r of rows) catTotals[r.category] = (catTotals[r.category] || 0) + r.total;
+  const topCats = Object.entries(catTotals).sort((a, b) => b[1] - a[1]).slice(0, 6).map(e => e[0]);
+
+  return { months, topCategories: topCats, rows };
+}
+
 module.exports = {
   getTaxonomy, createTaxonomy, updateTaxonomy, deleteTaxonomy, reorderTaxonomy,
   getTransactions, createTransaction, updateTransaction, deleteTransaction,
@@ -320,4 +345,5 @@ module.exports = {
   bulkInsertTransactions, bulkUpsertBudgets,
   getTransactionsByFy, getTransactionsByMonth,
   getBudgetsByFy, getBudgetsByMonth,
+  getDashboardCategoryTrend,
 };

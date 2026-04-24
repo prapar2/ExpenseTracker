@@ -5,7 +5,13 @@ import KPICard from '../components/KPICard';
 import ProjectionCard from '../components/ProjectionCard';
 import MonthPicker from '../components/MonthPicker';
 import BudgetVsActualTable from '../components/BudgetVsActualTable';
+import IncomeAllocationBar from '../components/IncomeAllocationBar';
+import TopExpensesChart from '../components/TopExpensesChart';
+import CumulativeNetChart from '../components/CumulativeNetChart';
+import SavingsRateChart from '../components/SavingsRateChart';
+import ExpenseCategoryTrend from '../components/ExpenseCategoryTrend';
 import { useDashboard } from '../hooks/useDashboard';
+import { useCategoryTrend } from '../hooks/useCategoryTrend';
 import { formatINR } from '../utils/formatUtils';
 import { currentMonth, getFYMonths, getMonthLabel, isElapsed, isCurrent } from '../utils/dateUtils';
 
@@ -27,6 +33,8 @@ export default function Dashboard({ fyStart }) {
   const [monthPickerCb, setMonthPickerCb] = useState(null);
 
   const { data, loading, error } = useDashboard(view, month, fyStart);
+  const { data: trendData } = useCategoryTrend(fyStart, view === 'yearly');
+  const [insightsOpen, setInsightsOpen] = useState(true);
 
   function drillTo(m, type, cat, sub) {
     nav('/transactions', { state: { month: m, types: type ? [type] : [], categories: cat ? [cat] : [], subcategories: sub ? [sub] : [] } });
@@ -51,6 +59,8 @@ export default function Dashboard({ fyStart }) {
           <KPICard label="Total Saving" amount={summary.saving} colorClass="text-green-600" onClick={() => drillTo(month, 'Saving', null, null)} />
           <KPICard label="Net" amount={summary.net} colorClass={summary.net >= 0 ? 'text-green-600' : 'text-red-600'} onClick={() => drillTo(month, null, null, null)} />
         </div>
+
+        <IncomeAllocationBar summary={summary} />
 
         {/* Budget vs Actual - Modern Card */}
         <div className="card overflow-hidden">
@@ -125,6 +135,8 @@ export default function Dashboard({ fyStart }) {
             </div>
           )}
         </div>
+
+        <TopExpensesChart budgetVsActual={budgetVsActual} onDrill={(cat) => drillTo(month, 'Expense', cat, null)} />
       </div>
     );
   }
@@ -200,6 +212,26 @@ export default function Dashboard({ fyStart }) {
             <h3 className="font-semibold text-gray-900">Annual Budget vs Actual</h3>
           </div>
           <BudgetVsActualTable rows={budgetVsActual} onDrillActual={(t, c, s) => openMonthPicker(m => drillTo(m, t, c, s))} />
+        </div>
+
+        {/* Collapsible Insights Section */}
+        <div className="card overflow-hidden">
+          <button
+            onClick={() => setInsightsOpen(o => !o)}
+            className="w-full px-5 py-4 border-b border-gray-100 flex items-center justify-between hover:bg-gray-50 transition-colors"
+          >
+            <h3 className="font-semibold text-gray-900">Insights</h3>
+            <svg className={`w-5 h-5 text-gray-400 transition-transform ${insightsOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {insightsOpen && (
+            <div className="p-5 space-y-6">
+              <CumulativeNetChart monthData={monthData} />
+              <SavingsRateChart monthData={monthData} />
+              <ExpenseCategoryTrend trendData={trendData} />
+            </div>
+          )}
         </div>
       </div>
     );
