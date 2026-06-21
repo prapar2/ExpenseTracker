@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, LineChart, Line, ReferenceLine } from 'recharts';
 import KPICard from '../components/KPICard';
@@ -33,6 +33,19 @@ export default function Dashboard({ fyStart }) {
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [monthPickerCb, setMonthPickerCb] = useState(null);
   const [selectedMonths, setSelectedMonths] = useState(fyMonths);
+  const [monthDropdownOpen, setMonthDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    if (!monthDropdownOpen) return;
+    function handleClick(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setMonthDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [monthDropdownOpen]);
 
   const { data, loading, error } = useDashboard(view, month, fyStart, selectedMonths);
   const { data: trendData } = useCategoryTrend(fyStart, view === 'yearly', selectedMonths);
@@ -209,7 +222,7 @@ export default function Dashboard({ fyStart }) {
             </button>
           </div>
           
-          {view === 'monthly' && (
+          {view === 'monthly' ? (
             <select 
               value={month} 
               onChange={e => setMonth(e.target.value)} 
@@ -217,52 +230,56 @@ export default function Dashboard({ fyStart }) {
             >
               {fyMonths.map(m => <option key={m} value={m}>{getMonthLabel(m)}</option>)}
             </select>
+          ) : (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setMonthDropdownOpen(o => !o)}
+                className="input w-auto flex items-center gap-2 whitespace-nowrap"
+              >
+                <span>{selectedMonths.length === fyMonths.length ? 'All Months' : `${selectedMonths.length} month${selectedMonths.length > 1 ? 's' : ''} selected`}</span>
+                <svg className={`w-4 h-4 transition-transform ${monthDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {monthDropdownOpen && (
+                <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-20 p-2 min-w-[190px]">
+                  <label className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 rounded cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedMonths.length === fyMonths.length}
+                      onChange={() => {
+                        setSelectedMonths(selectedMonths.length === fyMonths.length ? [fyMonths[0]] : fyMonths);
+                      }}
+                      className="rounded border-gray-300"
+                    />
+                    <span className="font-medium">All Months</span>
+                  </label>
+                  <hr className="my-1 border-gray-100" />
+                  {fyMonths.map(m => (
+                    <label key={m} className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 rounded cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedMonths.includes(m)}
+                        onChange={() => {
+                          setSelectedMonths(prev => {
+                            if (selectedMonths.includes(m) && prev.length <= 1) return prev;
+                            const next = selectedMonths.includes(m)
+                              ? prev.filter(x => x !== m)
+                              : [...prev, m];
+                            return next.sort((a, b) => fyMonths.indexOf(a) - fyMonths.indexOf(b));
+                          });
+                        }}
+                        className="rounded border-gray-300"
+                      />
+                      {getMonthLabel(m)}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
-
-      {/* Month Toggle - Yearly View */}
-      {view === 'yearly' && (
-        <div className="card p-3">
-          <div className="flex items-center gap-2 mb-2 flex-wrap">
-            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Months</span>
-            <button
-              onClick={() => setSelectedMonths(fyMonths)}
-              className={`text-xs px-2 py-0.5 rounded transition-colors ${
-                selectedMonths.length === fyMonths.length
-                  ? 'bg-blue-100 text-blue-700 font-medium'
-                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
-              }`}
-            >
-              All
-            </button>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {fyMonths.map(m => {
-              const isSelected = selectedMonths.includes(m);
-              return (
-                <button
-                  key={m}
-                  onClick={() => {
-                    setSelectedMonths(prev => {
-                      if (isSelected && prev.length <= 1) return prev;
-                      const next = isSelected ? prev.filter(x => x !== m) : [...prev, m];
-                      return next.sort((a, b) => fyMonths.indexOf(a) - fyMonths.indexOf(b));
-                    });
-                  }}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
-                    isSelected
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  {getMonthLabel(m).slice(0, 3)}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {/* Error State */}
       {error && (
