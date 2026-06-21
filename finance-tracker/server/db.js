@@ -141,17 +141,24 @@ function getDashboardMonthly(month) {
 }
 
 // Dashboard yearly
-function getDashboardYearly(fy_start) {
-  const months = [];
-  const [fyYr, fyMo] = fy_start.split('-').map(Number);
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(fyYr, fyMo - 1 + i, 1);
-    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+function getDashboardYearly(fy_start, selectedMonths = null) {
+  let months;
+  if (selectedMonths && selectedMonths.length > 0) {
+    months = selectedMonths;
+  } else {
+    months = [];
+    const [fyYr, fyMo] = fy_start.split('-').map(Number);
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(fyYr, fyMo - 1 + i, 1);
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
   }
 
-  const txRows = db.prepare('SELECT substr(date,1,7) as month, type, SUM(amount) as total FROM transactions WHERE date >= ? AND date < ? GROUP BY month, type')
-    .all(fy_start + '-01', months[11] + '-32');
-  const budgetRows = db.prepare('SELECT month,type,SUM(amount) as total FROM budgets WHERE fy_start=? GROUP BY month,type').all(fy_start);
+  const placeholders = months.map(() => '?').join(',');
+
+  const txRows = db.prepare(`SELECT substr(date,1,7) as month, type, SUM(amount) as total FROM transactions WHERE substr(date,1,7) IN (${placeholders}) GROUP BY month, type`)
+    .all(...months);
+  const budgetRows = db.prepare(`SELECT month,type,SUM(amount) as total FROM budgets WHERE fy_start=? AND month IN (${placeholders}) GROUP BY month,type`).all(fy_start, ...months);
 
   const actMap = {};
   for (const r of txRows) {
@@ -182,10 +189,10 @@ function getDashboardYearly(fy_start) {
   }
   ytd.net = ytd.income - ytd.expense - ytd.saving;
 
-  // Budget vs actual yearly rollup
-  const bRows = db.prepare('SELECT type,category,subcategory,SUM(amount) as total FROM budgets WHERE fy_start=? GROUP BY type,category,subcategory').all(fy_start);
-  const aRows = db.prepare('SELECT type,category,subcategory,SUM(amount) as total FROM transactions WHERE date >= ? AND date <= ? GROUP BY type,category,subcategory')
-    .all(fy_start + '-01', months[11] + '-31');
+  // Budget vs actual yearly rollup for selected months
+  const bRows = db.prepare(`SELECT type,category,subcategory,SUM(amount) as total FROM budgets WHERE fy_start=? AND month IN (${placeholders}) GROUP BY type,category,subcategory`).all(fy_start, ...months);
+  const aRows = db.prepare(`SELECT type,category,subcategory,SUM(amount) as total FROM transactions WHERE substr(date,1,7) IN (${placeholders}) GROUP BY type,category,subcategory`)
+    .all(...months);
   const ybMap = {};
   for (const r of bRows) ybMap[`${r.type}|${r.category}|${r.subcategory}`] = r.total;
   const yaMap = {};
@@ -311,23 +318,28 @@ function getBudgetsByMonth(month) {
   return db.prepare('SELECT * FROM budgets WHERE month=?').all(month);
 }
 
-function getDashboardCategoryTrend(fy_start) {
-  const months = [];
-  const [fyYr, fyMo] = fy_start.split('-').map(Number);
-  for (let i = 0; i < 12; i++) {
-    const d = new Date(fyYr, fyMo - 1 + i, 1);
-    months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+function getDashboardCategoryTrend(fy_start, selectedMonths = null) {
+  let months;
+  if (selectedMonths && selectedMonths.length > 0) {
+    months = selectedMonths;
+  } else {
+    months = [];
+    const [fyYr, fyMo] = fy_start.split('-').map(Number);
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(fyYr, fyMo - 1 + i, 1);
+      months.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`);
+    }
   }
-  const endDate = new Date(fyYr, fyMo - 1 + 12, 1);
-  const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-01`;
+
+  const placeholders = months.map(() => '?').join(',');
 
   const rows = db.prepare(`
     SELECT substr(date,1,7) as month, category, SUM(amount) as total
     FROM transactions
-    WHERE date >= ? AND date < ? AND type = 'Expense'
+    WHERE substr(date,1,7) IN (${placeholders}) AND type = 'Expense'
     GROUP BY month, category
     ORDER BY month ASC
-  `).all(fy_start + '-01', endStr);
+  `).all(...months);
 
   const catTotals = {};
   for (const r of rows) catTotals[r.category] = (catTotals[r.category] || 0) + r.total;

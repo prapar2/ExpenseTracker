@@ -25,13 +25,17 @@ export default function Dashboard({ fyStart }) {
   const [view, setView] = useState('monthly');
   const [month, setMonth] = useState(currentMonth());
 
-  // Reset selected month when FY changes to avoid showing a month outside the new FY
-  useEffect(() => { if (!fyMonths.includes(month)) setMonth(fyMonths[0]); }, [fyStart]);
+  // Reset selected month and selected months when FY changes
+  useEffect(() => {
+    if (!fyMonths.includes(month)) setMonth(fyMonths[0]);
+    setSelectedMonths(fyMonths);
+  }, [fyStart]);
   const [monthPickerOpen, setMonthPickerOpen] = useState(false);
   const [monthPickerCb, setMonthPickerCb] = useState(null);
+  const [selectedMonths, setSelectedMonths] = useState(fyMonths);
 
-  const { data, loading, error } = useDashboard(view, month, fyStart);
-  const { data: trendData } = useCategoryTrend(fyStart, view === 'yearly');
+  const { data, loading, error } = useDashboard(view, month, fyStart, selectedMonths);
+  const { data: trendData } = useCategoryTrend(fyStart, view === 'yearly', selectedMonths);
   const [insightsOpen, setInsightsOpen] = useState(true);
 
   function drillTo(m, type, cat, sub) {
@@ -216,6 +220,49 @@ export default function Dashboard({ fyStart }) {
           )}
         </div>
       </div>
+
+      {/* Month Toggle - Yearly View */}
+      {view === 'yearly' && (
+        <div className="card p-3">
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">Months</span>
+            <button
+              onClick={() => setSelectedMonths(fyMonths)}
+              className={`text-xs px-2 py-0.5 rounded transition-colors ${
+                selectedMonths.length === fyMonths.length
+                  ? 'bg-blue-100 text-blue-700 font-medium'
+                  : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+              }`}
+            >
+              All
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {fyMonths.map(m => {
+              const isSelected = selectedMonths.includes(m);
+              return (
+                <button
+                  key={m}
+                  onClick={() => {
+                    setSelectedMonths(prev => {
+                      if (isSelected && prev.length <= 1) return prev;
+                      const next = isSelected ? prev.filter(x => x !== m) : [...prev, m];
+                      return next.sort((a, b) => fyMonths.indexOf(a) - fyMonths.indexOf(b));
+                    });
+                  }}
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                    isSelected
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {getMonthLabel(m).slice(0, 3)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Error State */}
       {error && (

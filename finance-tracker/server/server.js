@@ -112,15 +112,17 @@ app.get('/app-api/dashboard/monthly', (req, res) => {
 });
 
 app.get('/app-api/dashboard/yearly', (req, res) => {
-  const { fy_start } = req.query;
+  const { fy_start, months } = req.query;
   if (!fy_start) return res.status(400).json({ error: 'fy_start required' });
-  res.json(db.getDashboardYearly(fy_start));
+  const selectedMonths = months ? months.split(',').filter(Boolean) : null;
+  res.json(db.getDashboardYearly(fy_start, selectedMonths));
 });
 
 app.get('/app-api/dashboard/category-trend', (req, res) => {
-  const { fy_start } = req.query;
+  const { fy_start, months } = req.query;
   if (!fy_start) return res.status(400).json({ error: 'fy_start required' });
-  res.json(db.getDashboardCategoryTrend(fy_start));
+  const selectedMonths = months ? months.split(',').filter(Boolean) : null;
+  res.json(db.getDashboardCategoryTrend(fy_start, selectedMonths));
 });
 
 app.post('/app-api/reset', (req, res) => {
